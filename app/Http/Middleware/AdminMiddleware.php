@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Level;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -19,7 +20,7 @@ class AdminMiddleware
     {
 
         // only user level = admin can access this
-        if (Auth::user()->level != 'admin') {
+        if (Auth::user()->level_id != Level::LEVEL_SUPER_ADMIN) {
             return redirect('/');
         }
         return $next($request);

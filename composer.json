@@ -12,7 +12,8 @@
         "laravel/sanctum": "^2.11",
         "laravel/tinker": "^2.5",
         "maatwebsite/excel": "^3.1",
-        "unisharp/laravel-filemanager": "^2.4"
+        "unisharp/laravel-filemanager": "^2.4",
+        "ext-json": "*"
     },
     "require-dev": {
         "facade/ignition": "^2.5",
@@ -29,7 +30,9 @@
             "Database\\Seeders\\": "database/seeders/"
         },
         "files": [
-            "app/helpers.php" 
+            "app/helpers.php",
+            "app/Http/Helpers/DocumentHelper.php",
+            "app/Http/Helpers/SpintaxHelper.php"
         ]
     },
     "autoload-dev": {

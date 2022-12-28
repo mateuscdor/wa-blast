@@ -2,14 +2,14 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="MPWA Multi Device V4.0.0 ,Whatsapp gateway Multi device Beta version">
+    <meta name="description" content="{{getSystemSettings('site-description', 'MPWA Multi Device V4.0.0 ,Whatsapp gateway Multi device Beta version')}}">
     <meta name="csrf-token" content="{{ csrf_token() }}" />
     <meta name="keywords" content="waapi,wa gateway, whatsapp blast, wamp, mpwa, m pedia wa gateway, wa gateway m pedia, ">
     <meta name="author" content="Ilman Sunanuddin , M pedia">
     <!-- The above 6 meta tags *must* come first in the head; any other head content must come *after* these tags -->
 
     <!-- Title -->
-    <title>{{ $title }} | MPWA MD version</title>
+    <title>{{ $title }} | {{getSystemSettings('site-title', 'MPWA MD version')}}</title>
 
     <!-- Styles -->
     <link rel="preconnect" href="https://fonts.gstatic.com">
@@ -25,18 +25,17 @@
     <link href="{{asset('css/main.min.css')}}" rel="stylesheet">
     <link href="{{asset('css/custom.css')}}" rel="stylesheet">
 
-    <link rel="icon" type="image/png" sizes="32x32" href="{{asset('')}}images/neptune.png" />
-    <link rel="icon" type="image/png" sizes="16x16" href="{{asset('')}}images/neptune.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="{{url(getSystemSettings('logo-icon', 'images/avatars/avatar2.png'))}}" />
+    <link rel="icon" type="image/png" sizes="16x16" href="{{url(getSystemSettings('logo-icon', 'images/avatars/avatar2.png'))}}" />
 
-  
+
+
 </head>
 
 <body>
 {{$slot}}
 
-</body>
-
-    <script src="{{asset('plugins/jquery/jquery-3.5.1.min.js')}}"></script>
+<script src="{{asset('plugins/jquery/jquery-3.5.1.min.js')}}"></script>
 <script src="{{asset('plugins/bootstrap/js/bootstrap.min.js')}}"></script>
 <script src="{{asset('plugins/perfectscroll/perfect-scrollbar.min.js')}}"></script>
 <script src="{{asset('plugins/pace/pace.min.js')}}"></script>

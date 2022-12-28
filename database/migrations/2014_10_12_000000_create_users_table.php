@@ -16,12 +16,16 @@ class CreateUsersTable extends Migration
         Schema::create('users', function (Blueprint $table) {
             $table->id();
             $table->string('username');
+            $table->string('display_name')->nullable();
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->string('api_key');
+            $table->string('phone_number')->nullable();
             $table->integer('chunk_blast');
-            $table->enum('level', ['admin', 'user'])->default('user');
+            $table->bigInteger('level_id')->default(\App\Models\Level::LEVEL_ADMIN);
+            $table->bigInteger('package_id')->nullable();
+            $table->bigInteger('registered_by')->nullable();
             $table->enum('status', ['active', 'inactive'])->default('active');
             $table->integer('limit_device')->default(0);
             $table->enum('active_subscription', ['inactive', 'active','lifetime','trial'])->default('inactive');

@@ -17,8 +17,10 @@ class CreateContactsTable extends Migration
             $table->id();
             $table->foreignId('user_id');
             $table->foreignId('tag_id')->references('id')->on('tags')->onDelete('cascade');
-            $table->string('name')->nullable();;
+            $table->string('name')->nullable();
             $table->string('number');
+            $table->text('raw_values');
+            $table->bigInteger('document_id')->nullable();
             $table->timestamps();
         });
     }

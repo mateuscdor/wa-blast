@@ -10,4 +10,3 @@ return \Illuminate\Support\Facades\Artisan::call('storage:link');
 Route::get('schedule-run', function () {
   return Illuminate\Support\Facades\Artisan::call('schedule:run');
 });
-?>

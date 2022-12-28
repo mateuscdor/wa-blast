@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Number;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Str;
 
 class NumberSeeder extends Seeder
 {
@@ -29,7 +30,8 @@ class NumberSeeder extends Seeder
                 'webhook' => '',
                 'status' => 'Disconnect',
                 'created_at' => now(),
-                'updated_at' => now()
+                'updated_at' => now(),
+                'api_key' => Str::random(30)
             ],
             [
                 'user_id' => 1,
@@ -37,7 +39,8 @@ class NumberSeeder extends Seeder
                 'webhook' => '',
                 'status' => 'Disconnect',
                 'created_at' => now(),
-                'updated_at' => now()
+                'updated_at' => now(),
+                'api_key' => Str::random(30)
             ]
         ];
 

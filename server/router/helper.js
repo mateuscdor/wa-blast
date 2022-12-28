@@ -27,7 +27,12 @@ async function asyncForEach(array, callback) {
     }
 }
 
+const getNumberFromSocket = function({sock, token}){
+    return sock.get(token)?.user?.id.split(':')[0];
+}
+
 module.exports = {
     formatReceipt,
+    getNumberFromSocket,
     asyncForEach
 }

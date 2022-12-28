@@ -12,15 +12,16 @@ global.log = lib.log
  */
 const express = require('express')
 const app = express()
-const https = require('https')
-//const server = http.createServer(app)
+// const https = require('https')
+const http = require('http')
+const server = http.createServer(app)
 //usr/local/directadmin/data/users/admin/domains/bot.whatsappmarketting.com.key
-const server = https.createServer({
+// const server = https.createServer({
 
-"key": fs.readFileSync("/usr/local/directadmin/data/users/admin/domains/bot.whatsappmarketting.com.key"),
-
-"cert": fs.readFileSync("/usr/local/directadmin/data/users/admin/domains/bot.whatsappmarketting.com.cert")
-}, app);
+// "key": fs.readFileSync("/usr/local/directadmin/data/users/admin/domains/bot.whatsappmarketting.com.key"),
+//
+// "cert": fs.readFileSync("/usr/local/directadmin/data/users/admin/domains/bot.whatsappmarketting.com.cert")
+// }, app);
 
 /**
  * SOCKET.IO
@@ -54,7 +55,7 @@ app.use(bodyParser.urlencoded({ extended: false,limit: '50mb',parameterLimit: 10
 // parse application/json
 app.use(bodyParser.json())
 
-app.use(express.static('src/public'))
+app.use(express.static('src/public'));
 app.use(require('./server/router'))
 
 
@@ -68,5 +69,6 @@ io.on('connection', (socket) => {
        wa.deleteCredentials(device,io)
     })
 })
-server.listen(port, log.info(`Server run and listening port: ${port}`))
+server.listen(port, "127.0.0.1", log.info(`Server run and listening port: ${port}`))
 
+// console.log(Object.keys(server))

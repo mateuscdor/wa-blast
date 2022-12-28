@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Level;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -16,41 +17,49 @@ use mysqli;
 
 class SettingController extends Controller
 {
-    
-  public function __construct()
-  {
-    $this->middleware('admin')->except('activate_license','install','test_database_connection');
-  }
+
+    public function __construct()
+    {
+        $this->middleware('admin')->except('activate_license','install','test_database_connection');
+    }
     public function index(){
+        if(Auth::user()->level_id !== Level::LEVEL_SUPER_ADMIN){
+            return redirect()->back()->with('alert', ['type' => 'danger', 'msg' => 'You are not permitted to do this action']);
+        }
         return view('pages.admin.settings');
     }
 
     public function test_database_connection(Request $request)
-{
+    {
 
-  $error_message = null;
+        $error_message = null;
 
-  $k = json_encode($request->database);
-  $data = json_decode($k);
-  
-    try {
-       
-       $db = mysqli_connect($data->host,$data->username,$data->password,$data->database);
-        if($db->connect_errno){
-            $error_message = 'Connection Failed .'. $db->connect_error;
-            
+        $k = json_encode($request->database);
+        $data = json_decode($k);
+
+        try {
+
+            $db = mysqli_connect($data->host,$data->username,$data->password,$data->database);
+            if($db->connect_errno){
+                $error_message = 'Connection Failed .'. $db->connect_error;
+
+            }
+        } catch (\Throwable $th) {
+            $error_message = 'Connection failed';
         }
-    } catch (\Throwable $th) {
-        $error_message = 'Connection failed';
+
+
+
+        return response()->json(['status' => $error_message ?? 'Success']);
     }
-  
-
-
-  return response()->json(['status' => $error_message ?? 'Success']);
-}
 
 
     public function setServer(Request $request){
+
+        if(Auth::user()->level_id !== Level::LEVEL_SUPER_ADMIN){
+            return redirect()->back()->with('alert', ['type' => 'danger', 'msg' => 'You are not permitted to do this action']);
+        }
+
         if($request->typeServer === 'other'){
             $request->validate([
                 'portnode' => ['required'],
@@ -62,14 +71,14 @@ class SettingController extends Controller
         } else if($request->typeServer === 'localhost'){
             $urlnode = 'http://localhost:'.$request->portnode ;
         }
-$this->setEnv('TYPE_SERVER',$request->typeServer);
-$this->setEnv('PORT_NODE',$request->portnode);
-$this->setEnv('WA_URL_SERVER',$urlnode);
+        $this->setEnv('TYPE_SERVER',$request->typeServer);
+        $this->setEnv('PORT_NODE',$request->portnode);
+        $this->setEnv('WA_URL_SERVER',$urlnode);
 
-return back()->with('alert',[
-    'type' => 'success',
-    'msg' => 'Success Update configuration!'
-]);
+        return back()->with('alert',[
+            'type' => 'success',
+            'msg' => 'Success Update configuration!'
+        ]);
 
 
 
@@ -78,47 +87,47 @@ return back()->with('alert',[
 
 
     public function activate_license(Request $request){
-    
+
         try {
-           $push = Http::withOptions(['verify' => false])->asForm()->post('https://license-management.m-pedia.my.id/api/license/activate',[
-               'email' => $request->email,
-               'host' => $_SERVER['HTTP_HOST'],
-               'licensekey' => $request->license
-           ]);
-           $res = json_decode($push);
-return $res;
-   
+            $push = Http::withOptions(['verify' => false])->asForm()->post('https://license-management.m-pedia.my.id/api/license/activate',[
+                'email' => $request->email,
+                'host' => $_SERVER['HTTP_HOST'],
+                'licensekey' => $request->license
+            ]);
+            $res = json_decode($push);
+            return $res;
+
         } catch (\Throwable $th) {
-           return 'false';
+            return 'false';
         }
     }
 
 
 
-   
-   
+
+
     public function setEnv(string $key,string $value){
-        
-        $env =  array_reduce(file(base_path('.env'), FILE_IGNORE_NEW_LINES|FILE_SKIP_EMPTY_LINES), 
-        function($carry, $item)
-        {
-          list($key, $val) = explode('=', $item, 2);
 
-          $carry[$key] = $val;
+        $env =  array_reduce(file(base_path('.env'), FILE_IGNORE_NEW_LINES|FILE_SKIP_EMPTY_LINES),
+            function($carry, $item)
+            {
+                list($key, $val) = explode('=', $item, 2);
 
-          return $carry;
-        }, []);
-     $env[$key] = $value;
-      foreach($env as $k => &$v)
-       $v = "{$k}={$v}";
+                $carry[$key] = $val;
+
+                return $carry;
+            }, []);
+        $env[$key] = $value;
+        foreach($env as $k => &$v)
+            $v = "{$k}={$v}";
 
 
-file_put_contents(base_path('.env'),implode("\r\n",$env));
+        file_put_contents(base_path('.env'),implode("\r\n",$env));
     }
 
 
 
-   
+
 
 
     public function install(Request $request){
@@ -126,148 +135,148 @@ file_put_contents(base_path('.env'),implode("\r\n",$env));
             return redirect('/');
         }
         if($request->method() === 'POST')
-      {        
-        $request->validate([
-          'database.*'          => 'string|required',
-         //'licensekey'           => 'required',
-         //'buyeremail'           =>'required|email',
-          'admin.username'      => 'required',
-          'admin.email'         => 'required|email',
-          'admin.password'      => 'required|max:255',
-        ]);
+        {
+            $request->validate([
+                'database.*'          => 'string|required',
+                //'licensekey'           => 'required',
+                //'buyeremail'           =>'required|email',
+                'admin.username'      => 'required',
+                'admin.email'         => 'required|email',
+                'admin.password'      => 'required|max:255',
+            ]);
 
-         /** CREATE DATABASE CONNECTION STARTS **/
-         $db_params = $request->input('database');
-         Config::set("database.connections.mysql", array_merge(config('database.connections.mysql'), $db_params));
-         try 
-         {
-           DB::connection()->getPdo();
-         }
-         catch (\Exception $e)
-         {
-            
-           $validator = Validator::make($request->all(), [])
-                        ->errors()->add('Database', $e->getMessage());
+            /** CREATE DATABASE CONNECTION STARTS **/
+            $db_params = $request->input('database');
+            Config::set("database.connections.mysql", array_merge(config('database.connections.mysql'), $db_params));
+            try
+            {
+                DB::connection()->getPdo();
+            }
+            catch (\Exception $e)
+            {
 
-           return redirect()->back()->withErrors($validator)->withInput();
-         }
-       /** CREATE DATABASE CONNECTION ENDS **/
+                $validator = Validator::make($request->all(), [])
+                    ->errors()->add('Database', $e->getMessage());
 
-
-       /** CREATE DATABASE TABLES STARTS **/
-       try {
-        DB::transaction(function () {
-
-          DB::unprepared(File::get(base_path('database/db_tables.sql')));
-        });
-       } catch (\Throwable $th) {
-        
-       }
-        
-       /** CREATE DATABASE TABLES ENDS **/
-   /** SETTING .ENV VARS STARTS **/
-   $env =  array_reduce(file(base_path('.env'), FILE_IGNORE_NEW_LINES|FILE_SKIP_EMPTY_LINES), 
-   function($carry, $item)
-   {
-     list($key, $val) = explode('=', $item, 2);
-
-     $carry[$key] = $val;
-
-     return $carry;
-   }, []);
-
-   if(isset($_SERVER['REQUEST_SCHEME'])){
-       $urll = "{$_SERVER['REQUEST_SCHEME']}://{$_SERVER['HTTP_HOST']}";   
-   } else {
-       $urll = $_SERVER['HTTP_HOST'];
-   }
-$env['DB_HOST']       = $db_params['host'];
-$env['DB_DATABASE']   = $db_params['database'];
-$env['DB_USERNAME']   = $db_params['username'];
-$env['DB_PASSWORD']   = $db_params['password'];
-$env['APP_URL']       = $urll;
-$env['APP_INSTALLED'] = 'true';
-$env['LICENSE_KEY'] = $request->input('licensekey');
-$env['BUYER_EMAIL'] = $request->input('buyeremail');
-
-foreach($env as $k => &$v)
-$v = "{$k}={$v}";
-
-file_put_contents(base_path('.env'), implode("\r\n", $env));
-/** SETTING .ENV VARS ENDS **/
+                return redirect()->back()->withErrors($validator)->withInput();
+            }
+            /** CREATE DATABASE CONNECTION ENDS **/
 
 
-   /** CREATE ADMIN USER STARTS **/
-   if(!$user = User::where('email', $request->input('admin.email'))->first())
-   {
-     $user = new User;
+            /** CREATE DATABASE TABLES STARTS **/
+            try {
+                DB::transaction(function () {
 
-     $user->username = $request->input('admin.username');
-     $user->email = $request->input('admin.email');
-     $user->password = Hash::make($request->input('admin.password'));
-     $user->email_verified_at = date('Y-m-d');
-     $user->level = 'admin';
-     $user->limit_device = 10;
-     $user->active_subscription = 'lifetime';
+                    DB::unprepared(File::get(base_path('database/db_tables.sql')));
+                });
+            } catch (\Throwable $th) {
 
-    
+            }
 
-     $user->save();
-   }
- /** CREATE ADMIN USER END **/
- Auth::loginUsingId($user->id,true);
-        return redirect()->route('home');
-      }
-      $mysql_user_version = ['distrib' => '', 'version' => null, 'compatible' => false];
+            /** CREATE DATABASE TABLES ENDS **/
+            /** SETTING .ENV VARS STARTS **/
+            $env =  array_reduce(file(base_path('.env'), FILE_IGNORE_NEW_LINES|FILE_SKIP_EMPTY_LINES),
+                function($carry, $item)
+                {
+                    list($key, $val) = explode('=', $item, 2);
+
+                    $carry[$key] = $val;
+
+                    return $carry;
+                }, []);
+
+            if(isset($_SERVER['REQUEST_SCHEME'])){
+                $urll = "{$_SERVER['REQUEST_SCHEME']}://{$_SERVER['HTTP_HOST']}";
+            } else {
+                $urll = $_SERVER['HTTP_HOST'];
+            }
+            $env['DB_HOST']       = $db_params['host'];
+            $env['DB_DATABASE']   = $db_params['database'];
+            $env['DB_USERNAME']   = $db_params['username'];
+            $env['DB_PASSWORD']   = $db_params['password'];
+            $env['APP_URL']       = $urll;
+            $env['APP_INSTALLED'] = 'true';
+            $env['LICENSE_KEY'] = $request->input('licensekey');
+            $env['BUYER_EMAIL'] = $request->input('buyeremail');
+
+            foreach($env as $k => &$v)
+                $v = "{$k}={$v}";
+
+            file_put_contents(base_path('.env'), implode("\r\n", $env));
+            /** SETTING .ENV VARS ENDS **/
+
+
+            /** CREATE ADMIN USER STARTS **/
+            if(!$user = User::where('email', $request->input('admin.email'))->first())
+            {
+                $user = new User;
+
+                $user->username = $request->input('admin.username');
+                $user->email = $request->input('admin.email');
+                $user->password = Hash::make($request->input('admin.password'));
+                $user->email_verified_at = date('Y-m-d');
+                $user->level = 'admin';
+                $user->limit_device = 10;
+                $user->active_subscription = 'lifetime';
+
+
+
+                $user->save();
+            }
+            /** CREATE ADMIN USER END **/
+            Auth::loginUsingId($user->id,true);
+            return redirect()->route('home');
+        }
+        $mysql_user_version = ['distrib' => '', 'version' => null, 'compatible' => false];
 
         if(function_exists('exec') || function_exists('shell_exec'))
         {
-          $mysqldump_v = function_exists('exec') ? exec('mysqldump --version') : shell_exec('mysqldump --version');
-  
-          if($mysqld = str_extract($mysqldump_v, '/Distrib (?P<destrib>.+),/i'))
-          {
-            $destrib = $mysqld['destrib'] ?? null;
-  
-            $mysqld = explode('-', mb_strtolower($destrib), 2);
-  
-            $mysql_user_version['distrib'] = $mysqld[1] ?? 'mysql';
-            $mysql_user_version['version'] = $mysqld[0];
-  
-            if($mysql_user_version['distrib'] == 'mysql' && $mysql_user_version['version'] >= 5.6)
+            $mysqldump_v = function_exists('exec') ? exec('mysqldump --version') : shell_exec('mysqldump --version');
+
+            if($mysqld = str_extract($mysqldump_v, '/Distrib (?P<destrib>.+),/i'))
             {
-              $mysql_user_version['compatible'] = true;
+                $destrib = $mysqld['destrib'] ?? null;
+
+                $mysqld = explode('-', mb_strtolower($destrib), 2);
+
+                $mysql_user_version['distrib'] = $mysqld[1] ?? 'mysql';
+                $mysql_user_version['version'] = $mysqld[0];
+
+                if($mysql_user_version['distrib'] == 'mysql' && $mysql_user_version['version'] >= 5.6)
+                {
+                    $mysql_user_version['compatible'] = true;
+                }
+                elseif($mysql_user_version['distrib'] == 'mariadb' && $mysql_user_version['version'] >= 10)
+                {
+                    $mysql_user_version['compatible'] = true;
+                }
             }
-            elseif($mysql_user_version['distrib'] == 'mariadb' && $mysql_user_version['version'] >= 10)
-            {
-              $mysql_user_version['compatible'] = true;
-            }
-          }
         }
-       
+
         $requirements = [
             "php" => ["version" => 7.4, "current" => phpversion()],
             "mysql" => ["version" => 5.6, "current" => $mysql_user_version],
             "php_extensions" => [
-              "curl" => false,
-              "fileinfo" => false,
-              "intl" => false,
-              "json" => false,
-              "mbstring" => false,
-              "openssl" => false,
-              "mysqli" => false,
-              "zip" => false,
-              "ctype" => false,
-              "dom" => false,
+                "curl" => false,
+                "fileinfo" => false,
+                "intl" => false,
+                "json" => false,
+                "mbstring" => false,
+                "openssl" => false,
+                "mysqli" => false,
+                "zip" => false,
+                "ctype" => false,
+                "dom" => false,
             ],
-          ];
-    
-          $php_loaded_extensions = get_loaded_extensions();
-        
-    
-          foreach($requirements['php_extensions'] as $name => &$enabled)
-          {
-              $enabled = in_array($name, $php_loaded_extensions);
-          }
+        ];
+
+        $php_loaded_extensions = get_loaded_extensions();
+
+
+        foreach($requirements['php_extensions'] as $name => &$enabled)
+        {
+            $enabled = in_array($name, $php_loaded_extensions);
+        }
         return view('install',[
             'requirements' => $requirements
         ]);

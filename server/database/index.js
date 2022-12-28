@@ -38,8 +38,25 @@ function dbQuery(query) {
     })
 }
 
+function dbUpdateQuery(query){
+    return new Promise(data => {
+       db.execute(query, (err, res) => {
+           if (err) throw err;
+           try {
+               data(res);
+           } catch (error) {
+               data({});
+               //throw error;
+           }
+       })
+    });
+}
+
+function toQueryTimestamp(timestamp){
+    return (new Date(timestamp)).toISOString().replace('T', ' ').replace('\.000Z', '');
+}
 
 
-module.exports = { setStatus, dbQuery,db }
+module.exports = { setStatus, dbQuery, db, dbUpdateQuery, toQueryTimestamp}
 
 // EXPORT

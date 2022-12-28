@@ -6,7 +6,6 @@ $('#type').on('change', () => {
         type: 'GET',
         dataType: 'html',
         success: (result) => {
-
             $('.ajaxplace').html(result)
         },
         error: (error) => {

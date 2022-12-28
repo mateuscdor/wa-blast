@@ -24,13 +24,13 @@
                 </li>
                 <x-select-device></x-select-device>
                 @if(Session::has('selectedDevice'))
-                 
+
                 <li class="{{request()->is('autoreply') ? 'active-page' : ''}}">
                     <a href="{{route('autoreply')}}" class=""><i class="material-icons-two-tone">message</i>{{__('system.autoreply')}}</a>
                 </li>
                 <li class="{{request()->is('tag') ? 'active-page' : ''}}">
                     <a href="{{route('tag')}}"><i class="material-icons-two-tone">contacts</i>Phone Book</a>
-                   
+
                 </li>
                 <li class="{{request()->is('campaign/create') ? 'active-page' : ''}}">
                     <a href="{{route('campaign.create')}}" class=""><i class="material-icons-two-tone">email</i>Create Campaign</a>
@@ -48,24 +48,34 @@
                  <li class="{{request()->is('user/change-password') ? 'active-page' : ''}}">
                     <a href="{{route('changePassword')}}"><i class="material-icons-two-tone">settings</i>Setting</a>
                 </li>
-              
+
                 {{-- <li class="{{request()->is('schedule') ? 'active-page' : ''}}">
                     <a href="{{route('scheduleMessage')}}" class=""><i class="material-icons-two-tone">schedule</i>Schedule Message</a>
                 </li> --}}
                 {{-- only level admin --}}
-                @if(Auth::user()->level == 'admin')
+                @if(Auth::user()->level_id !== \App\Models\Level::LEVEL_CUSTOMER_SERVICE)
                 <li class="sidebar-title">
                     Admin Menu
                 </li>
 
-                <li class="{{request()->is('settings') ? 'active-page' : ''}}">
-                    <a href="{{route('settings')}}"><i class="material-icons-two-tone">settings</i>Setting Server</a>
-                </li>
                 <li class="{{request()->is('admin/manage-user') ? 'active-page' : ''}}">
                     <a href="{{route('admin.manageUser')}}"><i class="material-icons-two-tone">people</i>User Manager</a>
                 </li>
                 @endif
-               
+
+                @if(Auth::user()->level_id === \App\Models\Level::LEVEL_SUPER_ADMIN)
+
+                    <li class="sidebar-title">
+                        Super Admin Menu
+                    </li>
+
+                    <li class="{{request()->is('admin/manage-packages') ? 'active-page' : ''}}">
+                        <a href="{{route('admin.managePackages')}}"><i class="material-icons-two-tone">book</i>Package Manager</a>
+                    </li>
+                    <li class="{{request()->is('settings') ? 'active-page' : ''}}">
+                        <a href="{{route('settings')}}"><i class="material-icons-two-tone">settings</i>Setting Server</a>
+                    </li>
+                @endif
 
             </ul>
         </div>
@@ -85,14 +95,14 @@
                             <li class="nav-item">
                                 <a class="nav-link hide-sidebar-toggle-button" href="#"><i class="material-icons">first_page</i></a>
                             </li>
-                           
+
                         </ul>
 
                     </div>
                     <div class="d-flex">
-                       
+
                         <ul class="navbar-nav">
-                         
+
 
                             <li class="nav-item hidden-on-mobile">
                                 <a class="nav-link nav-notifications-toggle" id="notificationsDropDown" href="#" data-bs-toggle="dropdown">4</a>
@@ -102,7 +112,7 @@
                                         <button type="submit" class="dropdown-header h6 " style="border: 0; background-color :white;">Logout</button>
                                     </form>
                                         {{-- <a href={{route('user.changePassword')}} class="dropdown-header h6" style="border: 0; background-color :white;">Setting</a>
-                               --}} </div> 
+                               --}} </div>
                             </li>
                         </ul>
                     </div>

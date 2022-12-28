@@ -9,6 +9,8 @@ use Illuminate\Contracts\Session\Session;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
+
 class HomeController extends Controller
 {
     
@@ -17,8 +19,7 @@ class HomeController extends Controller
        
         $numbers = Number::whereStatus('Connected')->get();
         return view('home',[
-            'numbers' => $request->user()->numbers()->latest()->paginate(15),
-           
+            'numbers' => $request->user()->numbers()->where('live_chat', '!=', 1)->latest()->paginate(15),
             'limit_device' => $request->user()->limit_device,
         ]);
     }
@@ -37,7 +38,8 @@ class HomeController extends Controller
             'user_id' => Auth::user()->id,
             'body' => $request->sender,
             'webhook' => $request->urlwebhook,
-            'status' => 'Disconnect',
+            'status' => Number::STATUS_DISCONNECTED,
+            'api_key' => Str::random(30),
             'messages_sent' => 0
         ]);
 

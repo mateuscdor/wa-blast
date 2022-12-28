@@ -19,6 +19,8 @@ class CreateNumbersTable extends Migration
             $table->string('body');
             $table->string('webhook')->nullable();
             $table->integer('messages_sent')->default(0);
+            $table->boolean('live_chat')->default(0);
+            $table->string('api_key')->nullable();
             $table->enum('status',['Connected','Disconnect']);
             $table->timestamps();
         });

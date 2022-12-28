@@ -14,6 +14,8 @@ class RestapiController extends Controller
      */
     public function __invoke(Request $request)
     {
-        return view('pages.rest-api');
+        return view('pages.rest-api', [
+            'apiKey' => '<YOUR-API-KEY-HERE>'
+        ]);
     }
 }

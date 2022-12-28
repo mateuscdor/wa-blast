@@ -20,8 +20,9 @@ class CreateCampaignsTable extends Migration
             $table->string('name');
             $table->string('tag');
             $table->string('type');
-            $table->enum('status',['waiting','executed','failed'])->default('waiting');
-           $table->json('message');
+            $table->integer('delay')->default(6);
+            $table->enum('status',['waiting','executed','failed','processing','finish','paused'])->default('waiting');
+            $table->json('message');
             $table->dateTime('schedule')->nullable();
             $table->timestamps();
         });

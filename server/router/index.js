@@ -30,6 +30,7 @@ router.post('/backend-send-media', wa.sendMedia)
 router.post('/backend-send-text', wa.sendText)
 router.post('/backend-getgroups', wa.fetchGroups)
 router.post('/backend-blast', wa.blast)
+router.post('/backend-direct', wa.direct)
 
 // STORE
 //router.post('/backend-store-chats', store.chats)

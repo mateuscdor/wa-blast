@@ -8,6 +8,7 @@ use App\Models\Contact;
 use App\Models\Number;
 use App\Models\Schedule;
 use App\Models\Tag;
+use App\Models\UserTemplate;
 use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -93,6 +94,106 @@ class BlastController extends Controller
         }
     }
 
+    public function blastProcess(Request $request){
+        $campaign = $request->user()->campaigns()->whereIn('status', ['waiting', 'processing'])->whereSender($request->sender)->exists();
+        if ($campaign) {
+            session()->flash('alert', [
+                'type' => 'danger',
+                'msg' =>
+                    'there is a campaign with the same sender, please wait until the campaign is finished',
+            ]);
+            return 'false';
+        }
+        if ($request->ajax()) {
+            if ($request->user()->is_expired_subscription) {
+                session()->flash('alert', [
+                    'type' => 'danger',
+                    'msg' =>
+                        'Your subscription has expired. Please renew your subscription.',
+                ]);
+                return 'false';
+            }
+
+            $totalContact = Contact::whereTagId($request->tag)->count();
+            if (
+                $totalContact == 0 ||
+                $totalContact > $request->user()->chunk_blast
+            ) {
+                session()->flash('alert', [
+                    'type' => 'danger',
+                    'msg' => 'the number of recipients does not match',
+                ]);
+                return 'false';
+            }
+
+            $numAndMsg = [];
+            $cek = Number::whereBody($request->sender)->first();
+            if ($cek->status !== 'Connected') {
+                session()->flash('alert', [
+                    'type' => 'danger',
+                    'msg' => 'Your sender is not connected yet!',
+                ]);
+                return 'false';
+            }
+
+            // create text
+            $msg = UserTemplate::parseRequest($request);
+
+            $contacts = Contact::whereTagId($request->tag)->get();
+
+            $data = [];
+            $campaign = Campaign::create([
+                'user_id' => $request->user()->id,
+                'sender' => $request->sender,
+                'name' => $request->name,
+                'tag' => $request->tag,
+                'type' => $request->message_type,
+                'message' => json_encode($msg),
+                'delay' => $request->delay,
+                'status' => 'waiting',
+                'schedule' => $request->start_date ?? now(),
+            ]);
+
+            foreach ($contacts as $contact) {
+                // replace {name} with contact name
+                try {
+                    //code...
+                    $message = \SpintaxHelper::generate(json_encode($msg), $contact);
+                    $data[] = [
+                        'campaign_id' => $campaign->id,
+                        'user_id' => $request->user()->id,
+                        'sender' => $request->sender,
+                        'receiver' => $contact->number,
+                        'message' => json_encode(UserTemplate::generateFromMessage(json_decode($message))),
+                        'type' => $request->message_type,
+                        'status' => 'pending',
+                        'created_at' => now(),
+                    ];
+
+                } catch (\Throwable $th) {
+                    $message = $msg;
+                }
+
+
+            }
+            // insert to database
+
+            $campaign->blasts()->createMany($data);
+            //
+            // insert many to blast table, with receiver = in destination
+
+
+            $campaign->update([
+                'status' => 'waiting',
+            ]);
+            session()->flash('alert', [
+                'type' => 'success',
+                'msg' => 'Blast message scheduled successfully',
+            ]);
+            return true;
+
+        }
+    }
     // ajax proccess
     public function blastProccess(Request $request)
     {
@@ -280,7 +381,6 @@ class BlastController extends Controller
                     }
 
                     break;
-                case 'list':
                 case 'list':
                     if (!$request->list1) {
                         session()->flash('alert', [

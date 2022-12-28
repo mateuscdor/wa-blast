@@ -1,13 +1,24 @@
 <x-layout-auth>
     @slot('title','Login')
-        
+    <style>
+        .app .app-auth-container .logo a {
+            background: none;
+            padding-left: 10px;
+        }
+        .app .app-auth-container .logo {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+        }
+    </style>
     <div class="app app-auth-sign-in align-content-stretch d-flex flex-wrap justify-content-end">
         <div class="app-auth-background">
-    
+
         </div>
         <div class="app-auth-container">
             <div class="logo">
-                <a href="/">WAMD</a>
+                <img src="{{url(getSystemSettings('logo-icon', '/images/neptune.png'))}}" style="width: 50px; height: 50; object-fit: contain">
+                <a href="/">{{getSystemSettings('logo-title', 'WAMD')}}</a>
             </div>
            @if (session()->has('alert'))
               <x-alert>
@@ -32,11 +43,11 @@
                 </div>
             </form>
             <div class="divider"></div>
-            <div class="auth-alts">
-                <a href="#" class="auth-alts-google"></a>
-                <a href="#" class="auth-alts-facebook"></a>
-                <a href="#" class="auth-alts-twitter"></a>
-            </div>
+{{--            <div class="auth-alts">--}}
+{{--                <a href="#" class="auth-alts-google"></a>--}}
+{{--                <a href="#" class="auth-alts-facebook"></a>--}}
+{{--                <a href="#" class="auth-alts-twitter"></a>--}}
+{{--            </div>--}}
         </div>
     </div>
 </x-layout-auth>

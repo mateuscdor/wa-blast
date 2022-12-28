@@ -31,6 +31,7 @@ Dilarang share atau menjual belikan source code ini tanpa izin ya bos! biar berk
     <link rel="icon" type="image/png" sizes="32x32" href="{{asset('images/avatars/avatar2.png')}}" />
     <link rel="icon" type="image/png" sizes="16x16" href="{{asset('images/avatars/avatar.png')}}" />
 
+    @stack('scripts')
 
 </head>
 
@@ -39,7 +40,7 @@ Dilarang share atau menjual belikan source code ini tanpa izin ya bos! biar berk
 <x-sidebar></x-sidebar>
 {{ $slot }}
 
-
+@yield('content')
     <!-- Javascripts -->
 
 <script src="{{asset('plugins/bootstrap/js/popper.min.js')}}"></script>

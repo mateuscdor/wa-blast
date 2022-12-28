@@ -4,20 +4,19 @@ namespace App\Http\Controllers;
 
 use App\Models\Number;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class ScanController extends Controller
 {
-    /**
-     * Handle the incoming request.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
-    public function __invoke(Number $number)
+    public function index($body)
     {
-      
-       return view('scan',[
-           'number' => $number
-       ]);
+        $number = Number::where('body', $body)->firstOrFail();
+        if(!$number->is_usable){
+            throw new NotFoundHttpException;
+        }
+
+        return view('scan',[
+            'number' => $number
+        ]);
     }
 }

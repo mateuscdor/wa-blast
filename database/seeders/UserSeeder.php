@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Level;
 use Illuminate\Database\Seeder;
 use App\Models\User;
 use Illuminate\Support\Str;
@@ -14,17 +15,18 @@ class UserSeeder extends Seeder
      */
     public function run()
     {
-      
-       $user = [
-           'id' => 1,
-        'username' => 'admin',
-        'email' => 'ilmansunannudin2@gmail.com',
-        'email_verified_at' => now(),
-        'password' => bcrypt(123456),
-        'api_key' => Str::random(15),
-        'chunk_blast' =>100
-    ];
 
-    User::create($user);
+        $user = [
+            'id' => 1,
+            'username' => 'admin',
+            'email' => 'ilmansunannudin2@gmail.com',
+            'email_verified_at' => now(),
+            'password' => bcrypt(123456),
+            'api_key' => Str::random(15),
+            'chunk_blast' =>100,
+            'level_id' => Level::LEVEL_SUPER_ADMIN,
+        ];
+
+        User::create($user);
     }
 }

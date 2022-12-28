@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Level;
 use App\Models\User;
 use Illuminate\Http\Request;
 
@@ -26,8 +27,8 @@ class RegisterController extends Controller
                 'email' => $request->email,
                 'password' => bcrypt($request->password),
                 'api_key' => '',
-                'chunk_blast' => 0
-
+                'chunk_blast' => 0,
+                'level_id' => Level::LEVEL_USER
             ]
         );
 

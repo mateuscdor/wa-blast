@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class Campaign extends Model
 {
     use HasFactory;
-    protected $fillable = ['user_id', 'sender', 'name', 'tag', 'type', 'status', 'message', 'schedule'];
+    protected $fillable = ['user_id', 'delay', 'sender', 'name', 'tag', 'type', 'status', 'message', 'schedule'];
 
     public function blasts(){
         return $this->hasMany(Blast::class);

@@ -6,6 +6,7 @@ use App\Models\Blast;
 use App\Models\Campaign;
 use App\Models\Contact;
 use App\Models\Number;
+use App\Models\UserTemplate;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -88,24 +89,15 @@ class StartBlast extends Command
                             ->get();
                         foreach ($blasts as $blast) {
                             // if exist {name} in message
-                            if (
-                                strpos($campaign->message, '{name}') !== false
-                            ) {
-                                $name = Contact::whereNumber(
-                                    $blast->receiver
-                                )->first()->name;
-                                $message = str_replace(
-                                    '{name}',
-                                    $name,
-                                    $campaign->message
-                                );
-                            } else {
-                                $message = $campaign->message;
-                            }
+                            $contact = Contact::whereNumber(
+                                $blast->receiver
+                            )->first();
+                            $message = \SpintaxHelper::generate($campaign->message, $contact);
+
                             $data[] = [
                                 'campaign_id' => $campaign->id,
                                 'receiver' => $blast->receiver,
-                                'message' => $message,
+                                'message' => json_encode(UserTemplate::generateFromMessage(json_decode($message))),
                                 'sender' => $campaign->sender,
                             ];
                         }
@@ -117,7 +109,7 @@ class StartBlast extends Command
                                     env('WA_URL_SERVER') . '/backend-blast',
                                     [
                                         'data' => json_encode($data),
-                                        'delay' => 1,
+                                        'delay' => $campaign->delay,
                                     ]
                                 );
                          
@@ -126,6 +118,7 @@ class StartBlast extends Command
                              $successNumber = $result->success;
                              $failedNumber = $result->failed;
                              Log::info($proc);
+                             Log::info($data);
                               Blast::whereIn('receiver', $successNumber)->whereStatus('pending')->update(['status' => 'success']);
                               Blast::whereIn('receiver', $failedNumber)->whereStatus('pending')->update(['status' => 'failed']);
                           
@@ -146,7 +139,7 @@ class StartBlast extends Command
                         }
 
                     } else {
-                      
+
                     }
                 }
 

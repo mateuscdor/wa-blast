@@ -14,9 +14,11 @@ class ContactImport implements ToCollection
     * @param Collection $collection
     */
         protected $tag;
-    public function __construct($tag)
+        protected $document;
+    public function __construct($tag, $document)
     {
         $this->tag = $tag;
+        $this->document = $document;
     }
     public function collection(Collection $collection)
     {
@@ -26,7 +28,9 @@ class ContactImport implements ToCollection
                 'user_id' => Auth::user()->id,
                 'tag_id' => $this->tag,
                 'name' => $row[0],
-                'number' => $row[1]
+                'number' => $row[1],
+                'document_id' => $this->document->id,
+                'raw_values' => $row,
             ]);
         }
       

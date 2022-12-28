@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\CampaignTemplate;
 use App\Models\Tag;
 use Illuminate\Http\Request;
 
@@ -23,9 +24,9 @@ class CampaignController extends Controller
             return $q->where('status', 'success');
         }])->withCount(['blasts as blasts_failed' => function($q){
             return $q->where('status', 'failed');
-        }])->latest()->get();        
+        }])->latest()->get();
         return view('pages.campaign-lists', [
-           'campaigns' => $campaigns,
+            'campaigns' => $campaigns,
         ]);
     }
 
@@ -33,7 +34,7 @@ class CampaignController extends Controller
     {
         $campaign = $request->user()->campaigns()->find($id);
         if ($request->ajax()) {
-           
+
 
             switch ($campaign->type) {
                 case 'text':
@@ -79,18 +80,21 @@ class CampaignController extends Controller
             }
         }
 
-        
+
     }
     public function destroyAll (Request $request)
     {
-        $campaign = $request->user()->campaigns()->delete();
-       session()->flash('alert' , [
-        'type' => 'success',
-        'msg' => 'All campaigns deleted',
-       ]);
+        $campaigns = $request->user()->campaigns();
+        CampaignTemplate::whereIn('campaign_id', $campaigns->pluck('id'))->delete();
+        $campaigns->delete();
 
-        
-      
+        session()->flash('alert' , [
+            'type' => 'success',
+            'msg' => 'All campaigns deleted',
+        ]);
+
+
+
 
         return redirect()->back();
     }
@@ -103,7 +107,7 @@ class CampaignController extends Controller
         session()->flash('alert' , [
             'type' => 'success',
             'msg' => 'Campaign paused',
-           ]);
+        ]);
         return json_encode([
             'status' => 'success',
             'msg' => 'Campaign paused',
@@ -116,13 +120,13 @@ class CampaignController extends Controller
 
         // faild if there is campaign in status processing or waiting
         $campaigns = $request->user()->campaigns()->whereSender($campaign->sender)->whereIn('status', ['processing','waiting'])->get();
-   
+
         if ($campaigns->count() > 0) {
-             session()->flash('alert' , [
-            'type' => 'danger',
-            'msg' => 'You have another campaign in status processing or waiting'
-              ]);
-         
+            session()->flash('alert' , [
+                'type' => 'danger',
+                'msg' => 'You have another campaign in status processing or waiting'
+            ]);
+
         } else {
 
             $campaign->status = 'processing';
@@ -130,11 +134,11 @@ class CampaignController extends Controller
             session()->flash('alert' , [
                 'type' => 'success',
                 'msg' => 'Campaign resumed',
-               ]);
+            ]);
         }
 
 
-         return json_encode([
+        return json_encode([
             'status' => 'error',
             'msg' => 'You have another campaign in status processing or waiting',
         ]);

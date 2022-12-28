@@ -1,70 +1,76 @@
-<style>
-    .lds-ellipsis {
-  display: inline-block;
-  position: relative;
-  width: 80px;
-  height: 80px;
-}
-.lds-ellipsis div {
-  position: absolute;
-  top: 33px;
-  width: 13px;
-  height: 13px;
-  border-radius: 50%;
-  background: black;
-  animation-timing-function: cubic-bezier(0, 1, 1, 0);
-}
-.lds-ellipsis div:nth-child(1) {
-  left: 8px;
-  animation: lds-ellipsis1 0.6s infinite;
-}
-.lds-ellipsis div:nth-child(2) {
-  left: 8px;
-  animation: lds-ellipsis2 0.6s infinite;
-}
-.lds-ellipsis div:nth-child(3) {
-  left: 32px;
-  animation: lds-ellipsis2 0.6s infinite;
-}
-.lds-ellipsis div:nth-child(4) {
-  left: 56px;
-  animation: lds-ellipsis3 0.6s infinite;
-}
-@keyframes lds-ellipsis1 {
-  0% {
-    transform: scale(0);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-@keyframes lds-ellipsis3 {
-  0% {
-    transform: scale(1);
-  }
-  100% {
-    transform: scale(0);
-  }
-}
-@keyframes lds-ellipsis2 {
-  0% {
-    transform: translate(0, 0);
-  }
-  100% {
-    transform: translate(24px, 0);
-  }
-}
+@extends('layouts.app')
+@push('head')
+    <link href="{{asset('plugins/datatables/datatables.min.css')}}" rel="stylesheet">
 
-</style>
-<x-layout-dashboard title="Blast">
+    <script src="{{asset('js/pages/datatables.js')}}"></script>
+    <script src="{{asset('plugins/datatables/datatables.min.js')}}"></script>
+    <style>
+        .lds-ellipsis {
+            display: inline-block;
+            position: relative;
+            width: 80px;
+            height: 80px;
+        }
+        .lds-ellipsis div {
+            position: absolute;
+            top: 33px;
+            width: 13px;
+            height: 13px;
+            border-radius: 50%;
+            background: black;
+            animation-timing-function: cubic-bezier(0, 1, 1, 0);
+        }
+        .lds-ellipsis div:nth-child(1) {
+            left: 8px;
+            animation: lds-ellipsis1 0.6s infinite;
+        }
+        .lds-ellipsis div:nth-child(2) {
+            left: 8px;
+            animation: lds-ellipsis2 0.6s infinite;
+        }
+        .lds-ellipsis div:nth-child(3) {
+            left: 32px;
+            animation: lds-ellipsis2 0.6s infinite;
+        }
+        .lds-ellipsis div:nth-child(4) {
+            left: 56px;
+            animation: lds-ellipsis3 0.6s infinite;
+        }
+        @keyframes lds-ellipsis1 {
+            0% {
+                transform: scale(0);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+        @keyframes lds-ellipsis3 {
+            0% {
+                transform: scale(1);
+            }
+            100% {
+                transform: scale(0);
+            }
+        }
+        @keyframes lds-ellipsis2 {
+            0% {
+                transform: translate(0, 0);
+            }
+            100% {
+                transform: translate(24px, 0);
+            }
+        }
+
+    </style>
+@endpush
+
+@section('title')
+    Blast
+@endsection
 
    
-  <link href="{{asset('plugins/datatables/datatables.min.css')}}" rel="stylesheet">
-
-<script src="{{asset('js/pages/datatables.js')}}"></script>
-<script src="{{asset('plugins/datatables/datatables.min.js')}}"></script>
-    <div class="app-content">
-        @if (session()->has('alert'))
+@section('content')
+    @if (session()->has('alert'))
         <x-alert>
             @slot('type',session('alert')['type'])
             @slot('msg',session('alert')['msg'])
@@ -74,7 +80,6 @@
             <div class="container-fluid">
                 <div class="row">
                     <div class="col">
-                    
                         <div class="card todo-container">
                             <div class="row">
                                 <div class="col-xl-4 col-xxl-3">
@@ -103,24 +108,26 @@
               
             </div>
         </div>
-    </div>
+
+@endsection
     
+@push('scripts')
     <script>
-    let checkboxAll = 0;
-    let checkboxTag = 0;
+        let checkboxAll = 0;
+        let checkboxTag = 0;
         function textBlast(){
             $('.optionTemplateBlast').removeClass('active')
             $('.optionButtonBlast').removeClass('active')
             $('.optionTextBlast').addClass('active')
             $('.optionImageBlast').removeClass('active')
-           getForm('text-message');   
+            getForm('text-message');
         }
         function imageBlast(){
             $('.optionTemplateBlast').removeClass('active')
             $('.optionButtonBlast').removeClass('active')
             $('.optionTextBlast').removeClass('active')
             $('.optionImageBlast').addClass('active')
-           getForm('image-message');   
+            getForm('image-message');
         }
         function buttonBlast(){
             $('.optionTemplateBlast').removeClass('active')
@@ -128,44 +135,45 @@
             $('.optionImageBlast').removeClass('active')
             $('.optionButtonBlast').addClass('active')
 
-           getForm('button-message');   
+            getForm('button-message');
         }
         function templateBlast(){
-            
+
             $('.optionTextBlast').removeClass('active')
             $('.optionImageBlast').removeClass('active')
             $('.optionButtonBlast').removeClass('active')
             $('.optionTemplateBlast').addClass('active')
 
-           getForm('template-message');   
+            getForm('template-message');
         }
 
         function getForm(url){
             $.ajax({
-                    url : `/blast/${url}`,
-                    method : 'GET',
-                    dataType : 'html',
-                    success : (result) => {
-                      
-                        $('.formBlastWrapper').addClass('d-flex align-items-center justify-content-center')
-                        $('.formBlastWrapper').html(`<div class="lds-ellipsis flex justify-items-center"><div></div><div></div><div></div><div></div></div>`)
-                        setTimeout(() => {
-                           
-                            $('.formBlastWrapper').removeClass('d-flex')
-                            $('.formBlastWrapper').html(result)
-                        }, 500);
-                        
-                    },
-                    error : (err) => {
-                        console.log(err)
-                    }
-                })
-                return; 
+                url : `/blast/${url}`,
+                method : 'GET',
+                dataType : 'html',
+                success : (result) => {
+
+                    $('.formBlastWrapper').addClass('d-flex align-items-center justify-content-center')
+                    $('.formBlastWrapper').html(`<div class="lds-ellipsis flex justify-items-center"><div></div><div></div><div></div><div></div></div>`)
+                    setTimeout(() => {
+
+                        $('.formBlastWrapper').removeClass('d-flex')
+                        $('.formBlastWrapper').html(result)
+                    }, 500);
+
+                },
+                error : (err) => {
+                    console.log(err)
+                }
+            })
+            return;
         }
 
-      
-   
+
+
 
 
     </script>
-</x-layout-dashboard>
+
+@endpush

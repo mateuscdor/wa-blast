@@ -1,19 +1,18 @@
 'use strict'
-const { Boom } = require('@hapi/boom');
 
 const { default: makeWASocket, makeWALegacySocket, downloadContentFromMessage } = require('@adiwajshing/baileys')
 const { fetchLatestBaileysVersion, useMultiFileAuthState, makeCacheableSignalKeyStore } = require('@adiwajshing/baileys')
 const { DisconnectReason } = require('@adiwajshing/baileys')
-const QRCode = require('qrcode')
+const ObjectManager = require("./object-manager");
 
 // const logger = require('../../lib/pino')
 const lib = require('../../lib')
 const fs = require('fs')
-let sock = []
-let qrcode = []
-let intervalStore = []
+let sock = ObjectManager();
+let QR = ObjectManager();
+let intervalStore = ObjectManager();
 const { setStatus } = require('../../database/index')
-const { autoReply } = require('./autoreply')
+const { autoReply, saveLiveChat} = require('./autoreply')
 const { formatReceipt } = require('../helper')
 const axios = require('axios')
 
@@ -23,6 +22,10 @@ const axios = require('axios')
 //  import { Boom } from '@hapi/boom'
 //  import makeWASocket, { AnyMessageContent, delay, DisconnectReason, fetchLatestBaileysVersion, makeInMemoryStore, MessageRetryMap, useMultiFileAuthState } from '../src'
 const MAIN_LOGGER = require('../../lib/pino')
+const request = require("request").defaults({ encoding: null });
+const sharp = require('sharp');
+const {dbQuery} = require("../../database");
+const {onConnectionOpen, onConnectionClose, onQRConnection, onConnectionStart} = require("./events");
 
 const logger = MAIN_LOGGER.child({})
 //  logger.level = 'trace'
@@ -36,220 +39,89 @@ const msgRetryCounterMap = () => MessageRetryMap = {}
 // start a connection
 const connectToWhatsApp = async (token, io = null) => {
 
-    if (typeof qrcode[token] !== 'undefined') {
-        if (io !== null) {
-            io.emit('qrcode', { token, data: qrcode[token], message: "please scan with your Whatsapp Account" })
-        }
-        return {
-            status: false,
-            sock: sock[token],
-            qrcode: qrcode[token],
-            message: "Please scann qrcode"
-        }
-    }
-
-    try {
-        let number = sock[token].user.id.split(':')
-        number = number[0] + '@s.whatsapp.net'
-        const ppUrl = await getPpUrl(token, number)
-        if (io !== null) {
-            io.emit('connection-open', { token, user: sock[token].user, ppUrl })
+    return new Promise((resolve, reject) => {
+        let qrCode = QR.get(token);
+        if (qrCode) {
+            if (io !== null) {
+                io.emit('qrcode', { token, data: qrCode, message: "please scan with your Whatsapp Account" })
+            }
+            return {
+                status: false,
+                sock: sock.get(token),
+                qrcode: qrCode,
+                message: "Please scann qrcode"
+            }
         }
 
+        let _interval = setTimeout(async () => {
+            try {
+                await onConnectionStart({sock, io, token});
+                // fetch latest version of Chrome For Linux
+                const chrome = await getChromeLates()
+                //  console.log(`using Chrome v${chrome?.data?.versions[0]?.version}, isLatest: ${chrome?.data?.versions.length > 0 ? true : false}`)
+                console.log('You re using whatsapp gateway M Pedia v4.3.2 - Contact admin if any trouble : 082298859671');
+                // fetch latest version of WA Web
+                const { version, isLatest } = await fetchLatestBaileysVersion()
+                console.log(`using WA v${version.join('.')}, isLatest: ${isLatest}`)
 
-
-        return { status: true, message: 'Already connected' }
-    } catch (error) {
-        if (io !== null) {
-
-            io.emit('message', { token, message: `Connecting..` })
-        }
-
-    }
-    const { state, saveCreds } = await useMultiFileAuthState(`./credentials/${token}`)
-
-    // fetch latest version of Chrome For Linux
-    const chrome = await getChromeLates()
-    //  console.log(`using Chrome v${chrome?.data?.versions[0]?.version}, isLatest: ${chrome?.data?.versions.length > 0 ? true : false}`)
-    console.log('You re using whatsapp gateway M Pedia v4.3.2 - Contact admin if any trouble : 082298859671');
-    // fetch latest version of WA Web
-    const { version, isLatest } = await fetchLatestBaileysVersion()
-    console.log(`using WA v${version.join('.')}, isLatest: ${isLatest}`)
-
-
-
-
-    sock[token] = makeWASocket({
-        version,
-        // browser: ['Linux', 'Chrome', '103.0.5060.114'],
-        browser: ['M Pedia', 'Chrome', chrome?.data?.versions[0]?.version],
-        logger,
-        printQRInTerminal: true,
-        auth: {
-            creds: state.creds,
-            keys: makeCacheableSignalKeyStore(state.keys, logger)
-        }
-    })
-
-    // store?.bind(sock[token].ev)
-
-    // sock[token].ev.on('messages.upsert', (m) => {
-    //     autoReply(m, sock[token])
-    // })
-
-
-    sock[token].ev.process(
-        async (events) => {
-
-            if (events['connection.update']) {
-                const update = events['connection.update'];
-                const { connection, lastDisconnect, qr } = update;
-                if (connection == 'close') {
-                    if ((lastDisconnect?.error)?.output?.statusCode !== DisconnectReason.loggedOut) {
-                        delete qrcode[token]
-                        if (io != null) io.emit('message', { token: token, message: "Connecting.." })
-                        if ((lastDisconnect.error)?.output?.payload?.message === 'QR refs attempts ended') {
-                            delete qrcode[token]
-                            sock[token].ws.close()
-                            if (io != null) io.emit('message', { token: token, message: 'Request QR ended. reload scan to request QR again' })
-                            return;
-                        }
-                        connectToWhatsApp(token, io)
-                    } else {
-                        setStatus(token, 'Disconnect')
-                        console.log('Connection closed. You are logged out.')
-                        if (io !== null) {
-                            io.emit('message', { token, message: 'Connection closed. You are logged out.' })
-                        }
-                        clearConnection(token)
+                const {state, saveCreds} = await useMultiFileAuthState(`./credentials/${token}`)
+                console.log(state);
+                let socket = makeWASocket({
+                    version,
+                    // browser: ['Linux', 'Chrome', '103.0.5060.114'],
+                    browser: ['M Pedia', 'Chrome', chrome?.data?.versions[0]?.version],
+                    logger,
+                    printQRInTerminal: true,
+                    auth: {
+                        creds: state.creds,
+                        keys: makeCacheableSignalKeyStore(state.keys, logger)
                     }
-                }
+                });
+                sock.set(token, socket);
+                sock.get(token).ev.process(
+                    async (events) => {
+                        if (events['connection.update']) {
+                            const update = events['connection.update'];
+                            const {connection, lastDisconnect, qr} = update;
 
-                if (qr) {
-                    // SEND TO YOUR CLIENT SIDE
-                    QRCode.toDataURL(qr, function (err, url) {
-                        if (err) {
-                            console.log(err);
+                            if (connection === 'close') {
+                                return onConnectionClose({lastDisconnect, io, sock, token, clearConnection, qr: QR, loop: ()=>connectToWhatsApp(token, io)});
+                            }
+                            if (qr) {
+                                // SEND TO YOUR CLIENT SIDE
+                                onQRConnection({io, token, qrCode: qr, qr: QR})
+                            }
+                            if (connection === 'open') {
+                                await onConnectionOpen({io, token, qr: QR, sock})
+                            }
                         }
-                        qrcode[token] = url
-                        if (io !== null) {
-                            io.emit('qrcode', { token, data: url, message: 'Please scan with your Whatsapp Account' })
+
+                        if (events['messages.upsert']) {
+                            const event = events['messages.upsert'];
+                            if (!event.messages) {
+                                return;
+                            }
+                            for (let message of event.messages) {
+                                saveLiveChat(message, sock.get(token));
+                                autoReply(message, sock.get(token));
+                            }
                         }
-                    })
-                }
-                if (connection === 'open') {
 
-                    setStatus(token, 'Connected')
-                    let number = sock[token].user.id.split(':')
-                    number = number[0] + '@s.whatsapp.net'
-
-                    const ppUrl = await getPpUrl(token, number)
-                    if (io !== null) {
-
-                        io.emit('connection-open', { token, user: sock[token].user, ppUrl })
+                        if (events['creds.update']) {
+                            saveCreds().catch(e => {
+                            })
+                        }
                     }
-                    delete qrcode[token]
-                }
+                )
+                clearTimeout(_interval);
+                resolve({
+                    sock: sock.get(token),
+                    qrcode: QR.get(token)
+                });
+            } catch (e) {
             }
-
-            if (events['messages.upsert']) {
-                const messages = events['messages.upsert'];
-                autoReply(messages, sock[token])
-
-            }
-
-            if (events['creds.update']) {
-                const creds = events['creds.update'];
-                saveCreds(creds)
-            }
-
-
-
-
-        }
-    )
-    // sock[token].ev.on('connection.update', async (update) => {
-    //     const { connection, qr, lastDisconnect } = update
-    //     if (connection === 'close') {
-    //         // reconnect if not logged out
-
-    //         if ((lastDisconnect.error)?.output?.statusCode !== DisconnectReason.loggedOut) {
-
-    //             if ((lastDisconnect.error)?.output?.payload?.message === 'Stream Errored (restart required)') {
-    //                 delete qrcode[token]
-    //                 connectToWhatsApp(token, io)
-    //                 if (io != null) io.emit('message', { token: token, message: "Reconnecting" })
-    //             } else if ((lastDisconnect.error)?.output?.payload?.message === 'QR refs attempts ended') {
-    //                 delete qrcode[token]
-    //                 if (io != null) io.emit('message', { token: token, message: lastDisconnect.error.output.payload.message, error: lastDisconnect.error.output.payload.error })
-    //             }
-    //         } else if ((lastDisconnect.error)?.output?.statusCode === 401) {
-    //             setStatus(token, 'Disconnect')
-    //             console.log('Connection closed. You are logged out.')
-    //             if (io !== null) {
-    //                 io.emit('message', { token, message: 'Connection closed. You are logged out.' })
-    //             }
-    //             clearConnection(token)
-    //         }
-    //     }
-
-    //     if (qr) {
-    //         // SEND TO YOUR CLIENT SIDE
-    //         QRCode.toDataURL(qr, function (err, url) {
-    //             if (err) {
-    //                 console.log(err);
-    //             }
-    //             qrcode[token] = url
-    //             if (io !== null) {
-    //                 io.emit('qrcode', { token, data: url, message: 'Qrcode updated, please scann with your Whatsapp Device' })
-    //             }
-    //         })
-    //     }
-
-    //     if (connection === 'open') {
-
-    //         setStatus(token, 'Connected')
-    //         let number = sock[token].user.id.split(':')
-    //         number = number[0] + '@s.whatsapp.net'
-
-    //         const ppUrl = await getPpUrl(token, number)
-    //         if (io !== null) {
-
-    //             io.emit('connection-open', { token, user: sock[token].user, ppUrl })
-    //         }
-    //         delete qrcode[token]
-    //     }
-
-    //     // if (lastDisconnect?.error) {
-    //     //     if (lastDisconnect.error.output.statusCode !== 408) {
-    //     //         delete qrcode[token]
-    //     //         connectToWhatsApp(token, io)
-    //     //         if (io !== null) {
-
-    //     //             io.emit('message', { token: token, message: "Reconnecting" })
-    //     //         }
-    //     //     }
-    //     //     else {
-    //     //         // restart node js
-    //     //         // process.exit(0)
-
-
-    //     //         if (io !== null) {
-
-    //     //             io.emit('message', { token: token, message: lastDisconnect.error.output.payload.message, error: lastDisconnect.error.output.payload.error })
-    //     //         }
-    //     //         clearConnection(token)
-    //     //     }
-    //     // }
-    // })
-
-    // listen for when the auth credentials is updated
-  //  sock[token].ev.on('creds.update', saveCreds)
-
-    return {
-        sock: sock[token],
-        qrcode: qrcode[token]
-    }
+        }, 3000);
+    });
 }
 //
 async function connectWaBeforeSend(token) {
@@ -282,8 +154,8 @@ async function connectWaBeforeSend(token) {
 const sendText = async (token, number, text) => {
 
     try {
-        const sendingTextMessage = await sock[token].sendMessage(formatReceipt(number), { text: text }) // awaiting sending message
-        return sendingTextMessage
+        // awaiting sending message
+        return await sock.get(token).sendMessage(formatReceipt(number), {text: text})
     } catch (error) {
         console.log(error)
         return false
@@ -293,26 +165,27 @@ const sendText = async (token, number, text) => {
 const sendMessage = async (token, number, msg) => {
 
     try {
-       // const message = JSON.parse(msg);
-     //   let isRegistered = false
-        // if (number.length > 14) {
-        //     number = number + '@g.us'
-        //     isRegistered = true;
-        // } else {
-        //     isRegistered = await isExist(token, formatReceipt(number))
-        //    // console.log(formatReceipt(number));
+        let message = JSON.parse(msg);
 
-        // }
-        // if (isRegistered) {
-        //   await sock[token].onWhatsApp(formatReceipt(number)) //
-        const sendingTextMessage = await sock[token].sendMessage(formatReceipt(number), JSON.parse(msg)) // awaiting sending message
-            return sendingTextMessage
-        // } else {
+        if(message.image){
+            let data = await (new Promise((resolve, reject) => {
+                request.get(message.image.url, function (error, response, body) {
+                    if (!error && response.statusCode === 200) {
+                        let data = Buffer.from(body,'base64');
+                        resolve(data);
+                    } else {
+                        reject("Image Not found");
+                    }
+                });
+            }))
+            message.jpegThumbnail = Buffer.from(await sharp(data).jpeg({
+                quality: 30
+            }).resize({ width: 100 }).toBuffer()).toString('base64');
+        }
+         // awaiting sending message
+        return await sock.get(token).sendMessage(formatReceipt(number), message)
 
-        //     return false;
-        // }
     } catch (error) {
-        console.log(error);
         return false
     }
 
@@ -328,64 +201,64 @@ async function sendMedia(token, destination, type, url, fileName, caption) {
     const number = formatReceipt(destination);
     try {
         if (type == 'image') {
-            var sendMsg = await sock[token].sendMessage(
+            var sendMsg = await sock.get(token).sendMessage(
                 number,
                 { image: url ? { url } : fs.readFileSync('src/public/temp/' + fileName), caption: caption ? caption : null },
             )
         } else if (type == 'video') {
-            var sendMsg = await sock[token].sendMessage(
+            var sendMsg = await sock.get(token).sendMessage(
                 number,
                 { video: url ? { url } : fs.readFileSync('src/public/temp/' + fileName), caption: caption ? caption : null },
             )
         } else if (type == 'audio') {
-            var sendMsg = await sock[token].sendMessage(
+            var sendMsg = await sock.get(token).sendMessage(
                 number,
                 { audio: url ? { url } : fs.readFileSync('src/public/temp/' + fileName), caption: caption ? caption : null },
             )
         } else if (type == 'pdf') {
-            var sendMsg = await sock[token].sendMessage(
+            var sendMsg = await sock.get(token).sendMessage(
                 number,
                 { document: { url: url }, mimetype: 'application/pdf' },
                 { url: url }
             )
         } else if (type == 'xls') {
-            var sendMsg = await sock[token].sendMessage(
+            var sendMsg = await sock.get(token).sendMessage(
                 number,
                 { document: { url: url }, mimetype: 'application/excel' },
                 { url: url }
             )
         } else if (type == 'xls') {
-            var sendMsg = await sock[token].sendMessage(
+            var sendMsg = await sock.get(token).sendMessage(
                 number,
                 { document: { url: url }, mimetype: 'application/excel' },
                 { url: url }
             )
         } else if (type == 'xlsx') {
-            var sendMsg = await sock[token].sendMessage(
+            var sendMsg = await sock.get(token).sendMessage(
                 number,
                 { document: { url: url }, mimetype: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' },
                 { url: url }
             )
         } else if (type == 'doc') {
-            var sendMsg = await sock[token].sendMessage(
+            var sendMsg = await sock.get(token).sendMessage(
                 number,
                 { document: { url: url }, mimetype: 'application/msword' },
                 { url: url }
             )
         } else if (type == 'docx') {
-            var sendMsg = await sock[token].sendMessage(
+            var sendMsg = await sock.get(token).sendMessage(
                 number,
                 { document: { url: url }, mimetype: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' },
                 { url: url }
             )
         } else if (type == 'zip') {
-            var sendMsg = await sock[token].sendMessage(
+            var sendMsg = await sock.get(token).sendMessage(
                 number,
                 { document: { url: url }, mimetype: 'application/zip' },
                 { url: url }
             )
         } else if (type == 'mp3') {
-            var sendMsg = await sock[token].sendMessage(
+            var sendMsg = await sock.get(token).sendMessage(
                 number,
                 { document: { url: url }, mimetype: 'application/mp3' },
                 { url: url }
@@ -434,7 +307,7 @@ async function sendButtonMessage(token, number, button, message, footer, image) 
                 headerType: 1
             }
         }
-        const sendMsg = await sock[token].sendMessage(formatReceipt(number), buttonMessage)
+        const sendMsg = await sock.get(token).sendMessage(formatReceipt(number), buttonMessage)
         return sendMsg
     } catch (error) {
         console.log(error)
@@ -471,7 +344,7 @@ async function sendTemplateMessage(token, number, button, text, footer, image) {
             }
         }
 
-        const sendMsg = await sock[token].sendMessage(formatReceipt(number), buttonMessage)
+        const sendMsg = await sock.get(token).sendMessage(formatReceipt(number), buttonMessage)
         return sendMsg
     } catch (error) {
         console.log(error)
@@ -487,7 +360,7 @@ async function sendListMessage(token, number, list, text, footer, title, buttonT
 
         const listMessage = { text, footer, title, buttonText, sections: [list] }
 
-        const sendMsg = await sock[token].sendMessage(formatReceipt(number), listMessage)
+        const sendMsg = await sock.get(token).sendMessage(formatReceipt(number), listMessage)
         return sendMsg
     } catch (error) {
         console.log(error)
@@ -501,7 +374,7 @@ async function sendListMessage(token, number, list, text, footer, title, buttonT
 async function fetchGroups(token) {
     // check is exists token
     try {
-        let getGroups = await sock[token].groupFetchAllParticipating();
+        let getGroups = await sock.get(token).groupFetchAllParticipating();
         let groups = Object.entries(getGroups).slice(0).map(entry => entry[1]);
      
 
@@ -514,7 +387,7 @@ async function fetchGroups(token) {
 // if exist
 async function isExist(token, number) {
 
-    if (typeof sock[token] === 'undefined') {
+    if (!sock.get(token)) {
         const status = await connectWaBeforeSend(token)
         if (!status) {
             return false
@@ -524,9 +397,7 @@ async function isExist(token, number) {
         if (number.includes('@g.us')) {
             return true
         } else {
-
-            const [result] = await sock[token].onWhatsApp(number)
-           
+            const [result] = await sock.get(token).onWhatsApp(number)
             return result
         }
     } catch (error) {
@@ -536,43 +407,25 @@ async function isExist(token, number) {
 }
 
 // ppUrl
-async function getPpUrl(token, number, highrest) {
-
-    let ppUrl
-    try {
-        // if (highrest) {
-        //     // for high res picture
-        //     ppUrl = await sock[token].profilePictureUrl(number, 'image')
-        // } else {
-            // for low res picture
-            ppUrl = await sock[token].profilePictureUrl(number)
-      //  }
-
-        return ppUrl
-    } catch (error) {
-        return 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/WhatsApp.svg/1200px-WhatsApp.svg.png'
-    }
-}
 
 // close connection
 async function deleteCredentials(token, io = null) {
     if (io !== null) {
-
-        io.emit('message', { token: token, message: 'Logout Progres..' })
+        io.emit('message', { token: token, message: 'Logging out..' })
     }
     try {
-        if (typeof sock[token] === 'undefined') {
+        if (typeof sock.get(token) === 'undefined') {
             const status = await connectWaBeforeSend(token)
             if (status) {
-                sock[token].logout()
-                delete sock[token]
+                sock.get(token).logout()
+                sock.remove(token)
             }
         } else {
-            sock[token].logout()
-            delete sock[token]
+            sock.get(token).logout()
+            sock.remove(token)
         }
-        delete qrcode[token]
-        clearInterval(intervalStore[token])
+        QR.remove(token);
+        clearInterval(intervalStore.get(token))
         setStatus(token, 'Disconnect')
 
         if (io != null) {
@@ -605,15 +458,14 @@ async function deleteCredentials(token, io = null) {
 }
 
 async function getChromeLates() {
-    const req = await axios.get('https://versionhistory.googleapis.com/v1/chrome/platforms/linux/channels/stable/versions')
-    return req
+    return await axios.get('https://versionhistory.googleapis.com/v1/chrome/platforms/linux/channels/stable/versions')
 }
 
 function clearConnection(token) {
-    clearInterval(intervalStore[token])
+    clearInterval(intervalStore.get(token))
 
-    delete sock[token]
-    delete qrcode[token]
+    sock.remove(token);
+    QR.remove(token);
     setStatus(token, 'Disconnect');
     if (fs.existsSync(`./credentials/${token}`)) {
         fs.rmSync(`./credentials/${token}`, { recursive: true, force: true }, (err) => {
@@ -636,14 +488,15 @@ async function initialize(req, res) {
         const path = `./credentials/${token}`
         if (fs.existsSync(path)) {
 
-            sock[token] = undefined;
-            const status = await connectWaBeforeSend(token)
-            if (status) {
-                return res.status(200).json({ status: true, message: 'Connection restored' })
-            } else {
-                return res.status(200).json({ status: false, message: 'Connection failed' })
-            }
-
+            sock.remove(token);
+            connectWaBeforeSend(token).then(status => {
+                if (status) {
+                    return res.status(200).json({ status: true, message: 'Connection restored' })
+                } else {
+                    return res.status(200).json({ status: false, message: 'Connection failed' })
+                }
+            })
+            return;
         }
         return res.send({ status: false, message: `${token} Connection failed,please scan first` })
     }
@@ -661,7 +514,6 @@ module.exports = {
     sendTemplateMessage,
     sendListMessage,
     isExist,
-    getPpUrl,
     fetchGroups,
     deleteCredentials,
     sendMessage,
