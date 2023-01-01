@@ -6,8 +6,6 @@
 
 @push('head')
     <link href="{{asset('plugins/datatables/datatables.min.css')}}" rel="stylesheet">
-    <link href="{{asset('plugins/select2/css/select2.css')}}" rel="stylesheet">
-    <link href="{{asset('css/custom.css')}}" rel="stylesheet">
 @endpush
 
 @section('content')
