@@ -16,16 +16,16 @@ class ApiController extends Controller
     public function messageText(Request $request){
       
         $data = [
-            'token' => $request->sender,
             'number' => $request->number,
             'text' => $request->message
         ];
-        $number = Number::whereBody($request->sender)->first();
+        $number = Number::whereApiKey($request->api_key)->first();
+        $data['token'] = $number->body;
         if ($number->status == 'Disconnect') {
             return response()->json([
                 'status' => false ,
                 'msg' => 'Sender is disconnected',
-            ],Response::HTTP_BAD_REQUEST);
+            ],400);
          }
 
         $sendMessage = json_decode($this->postMsg($data, 'backend-send-text'));
@@ -33,7 +33,7 @@ class ApiController extends Controller
             return response()->json([
                 'status' => false ,
                 'msg' => $sendMessage->msg ?? $sendMessage->message,
-            ],Response::HTTP_BAD_REQUEST);
+            ],400);
          }
         $number->messages_sent += 1;
         $number->save();
@@ -41,7 +41,7 @@ class ApiController extends Controller
         return response()->json([
             'status' => true ,
             'data' => $sendMessage->data,
-        ],Response::HTTP_OK);
+        ],200);
         
     
     }
@@ -54,28 +54,27 @@ class ApiController extends Controller
          return response()->json([
              'status' => false ,
              'msg' => 'Wrong parameters!',
-         ],Response::HTTP_BAD_REQUEST);
+         ],400);
         }
         if(!in_array($request->type,['image','video','audio','pdf','xls','xlsx','doc','docx','zip'])){
             return response()->json([
                 'status' => false ,
                 'msg' => 'Invalid type of media!',
-            ],Response::HTTP_BAD_REQUEST);
+            ],400);
         }
         $url = $request->url;
         $fileName = pathinfo($url, PATHINFO_FILENAME);
         $data = [
             'type' => $request->type,
-            'token' => $request->sender,
             'url' => $request->url,
             'number' => $request->number,
             'caption' => $request->message,
             'fileName' => $fileName,
-            'type' => $request->type
         ];
-        $number = Number::whereBody($request->sender)->first();
+        $number = Number::whereApiKey($request->api_key)->first();
+        $data['token'] = $number->body;
         if ($number->status == 'Disconnect') {
-            return response()->json(['status' => false ,'msg' => 'Sender is disconnected'],Response::HTTP_BAD_REQUEST);
+            return response()->json(['status' => false ,'msg' => 'Sender is disconnected'],400);
         }
         $sendMessage = json_decode($this->postMsg($data, 'backend-send-media'));
         if (!$sendMessage->status) {
@@ -97,7 +96,7 @@ class ApiController extends Controller
          return response()->json([
              'status' => false ,
              'msg' => 'Wrong parameterss!',
-         ],Response::HTTP_BAD_REQUEST);
+         ],400);
         }
 
         $buttons = [];
@@ -111,16 +110,16 @@ class ApiController extends Controller
            
 
         $data = [
-            'token' => $request->sender,
             'number' => $request->number,
             'button' => json_encode($buttons),
             'message' => $request->message,
             'footer' => $request->footer ,
             'image' => $request->image ?? '',
         ];
-        $number = Number::whereBody($request->sender)->first();
-        if ($number->status == 'Disconnect') {
-            return response()->json(['status' => false, 'msg' => 'Sender is disconnected'], Response::HTTP_BAD_REQUEST);
+         $number = Number::whereApiKey($request->api_key)->first();
+         $data['token'] = $number->body;
+         if ($number->status == 'Disconnect') {
+            return response()->json(['status' => false, 'msg' => 'Sender is disconnected'], 400);
         }
         $sendMessage = json_decode($this->postMsg($data, 'backend-send-button'));
         if (!$sendMessage->status) {
@@ -138,7 +137,7 @@ class ApiController extends Controller
            return response()->json([
                'status' => false ,
                'msg' => 'Wrong parameters!',
-           ],Response::HTTP_BAD_REQUEST);
+           ],400);
        }
 
         $templates = [];
@@ -147,7 +146,7 @@ class ApiController extends Controller
            return response()->json([
               'status' => false ,
               'msg' => $makeTemplate1['msg'],
-           ],Response::HTTP_BAD_REQUEST);
+           ],400);
         } else {
             $templates[] = $makeTemplate1['data'];
         }
@@ -157,7 +156,7 @@ class ApiController extends Controller
                 return response()->json([
                     'status' => false ,
                     'msg' => $makeTemplate2['msg'],
-                ],Response::HTTP_BAD_REQUEST);
+                ],400);
             } else {
                 $templates[] = $makeTemplate2['data'];
             }
@@ -168,7 +167,7 @@ class ApiController extends Controller
                 return response()->json([
                     'status' => false ,
                     'msg' => $makeTemplate3['msg'],
-                ],Response::HTTP_BAD_REQUEST);
+                ],400);
             } else {
                 $templates[] = $makeTemplate3['data'];
             }
@@ -176,7 +175,6 @@ class ApiController extends Controller
       
       
         $data = [
-            'token' => $request->sender,
             'number' => $request->number,
             'button' => json_encode($templates),
             'text' => $request->message,
@@ -184,17 +182,18 @@ class ApiController extends Controller
             'image' => $request->url ?? '',
         ];
 
-        $number = Number::whereBody($request->sender)->first();
+         $number = Number::whereApiKey($request->api_key)->first();
+         $data['token'] = $number->body;
         if ($number->status == 'Disconnect') {
-            return response()->json(['status' => false, 'msg' => 'Sender is disconnected'], Response::HTTP_BAD_REQUEST);
+            return response()->json(['status' => false, 'msg' => 'Sender is disconnected'], 400);
         }
         $sendMessage = json_decode($this->postMsg($data, 'backend-send-template'));
         if (!$sendMessage->status) {
-            return response()->json(['status' => false, 'msg' => $sendMessage->msg ?? $sendMessage->message],Response::HTTP_BAD_REQUEST);
+            return response()->json(['status' => false, 'msg' => $sendMessage->msg ?? $sendMessage->message],400);
         }
         $number->messages_sent += 1;
         $number->save();
-        return response()->json(['status' => true, 'data' => $sendMessage->data],Response::HTTP_OK);
+        return response()->json(['status' => true, 'data' => $sendMessage->data],200);
      }
 
      public function messageList(Request $request){
@@ -202,7 +201,7 @@ class ApiController extends Controller
             return response()->json([
                 'status' => false ,
                 'msg' => 'Wrong parameters!',
-            ],Response::HTTP_BAD_REQUEST);
+            ],400);
         }
 
         $section['title'] = $request->title;
@@ -248,7 +247,6 @@ class ApiController extends Controller
        
 
         $data = [
-            'token' => $request->sender,
             'number' => $request->number,
             'list' => json_encode($section),
             'text' => $request->message,
@@ -256,18 +254,19 @@ class ApiController extends Controller
             'title' => $request->title,
             'buttonText' => $request->name,
         ];
-       
-        $number = Number::whereBody($request->sender)->first();
+
+         $number = Number::whereApiKey($request->api_key)->first();
+         $data['token'] = $number->body;
         if ($number->status == 'Disconnect') {
-            return response()->json(['status' => false, 'msg' => 'Sender is disconnected'], Response::HTTP_BAD_REQUEST);
+            return response()->json(['status' => false, 'msg' => 'Sender is disconnected'], 400);
         }
         $sendMessage = json_decode($this->postMsg($data, 'backend-send-list'));
         if (!$sendMessage->status) {
-            return response()->json(['status' => false, 'msg' => $sendMessage->msg ?? $sendMessage->message],Response::HTTP_BAD_REQUEST);
+            return response()->json(['status' => false, 'msg' => $sendMessage->msg ?? $sendMessage->message],400);
         }
         $number->messages_sent += 1;
         $number->save();
-        return response()->json(['status' => true, 'data' => $sendMessage->data],Response::HTTP_OK);
+        return response()->json(['status' => true, 'data' => $sendMessage->data],200);
 
      
        
@@ -317,7 +316,7 @@ class ApiController extends Controller
             $post = Http::withOptions(['verify' => false])->asForm()->post(env('WA_URL_SERVER') . '/' . $url, $data);
             return $post->body();
             if (json_decode($post)->status === true) {
-                $c = Number::whereBody($data['sender'])->first();
+                $c = Number::whereBody($data['token'])->first();
                 $c->messages_sent += 1;
                 $c->save();
             }
@@ -334,7 +333,7 @@ class ApiController extends Controller
             return response()->json([
                 'status' => false ,
                 'msg' => 'Wrong parameters!',
-            ],Response::HTTP_BAD_REQUEST);
+            ],400);
         }
        // check user by api key
         $user = User::whereApiKey($request->api_key)->first();
@@ -342,16 +341,16 @@ class ApiController extends Controller
             return response()->json([
                 'status' => false ,
                 'msg' => 'Your subscription has expired!',
-            ],Response::HTTP_BAD_REQUEST);
+            ],400);
         }
         if(!$user){
-            return response()->json(['status' => false, 'msg' => 'Wrong api key!'],Response::HTTP_BAD_REQUEST);
+            return response()->json(['status' => false, 'msg' => 'Wrong api key!'],400);
         }
         $number = Number::whereBody($request->number)->first();
         $allnumber = Number::whereUserId($user->id)->get();
         if(!$number){
             if($user->limit_device <= count($allnumber) ){
-                return response()->json(['status' => false, 'msg' => 'You have reached your limit of devices!'],Response::HTTP_BAD_REQUEST);
+                return response()->json(['status' => false, 'msg' => 'You have reached your limit of devices!'],400);
             }
             $number = new Number();
             $number->body = $request->number;
@@ -365,10 +364,10 @@ class ApiController extends Controller
                 'token' => $request->number,
             ]);
         } catch (\Throwable $th) {
-            return response()->json(['status' => false, 'msg' => 'Make sure your server Node already running!'],Response::HTTP_BAD_REQUEST);
+            return response()->json(['status' => false, 'msg' => 'Make sure your server Node already running!'],400);
         }
      // send respon json from post
-     return response()->json(json_decode($post->body()),Response::HTTP_OK);
+     return response()->json(json_decode($post->body()),200);
         
        
     }

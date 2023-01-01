@@ -2,7 +2,7 @@
     <code class="language-php php">
 &lt;?php
     $data = [
-        'api_key' => '{{$apiKey}}',
+        'api_key' => '{{Auth::user()->api_key}}',
         'number' => 'Number', // the number you want to connect, will be added to the database if it is not registered.
     ];
     $curl = curl_init();

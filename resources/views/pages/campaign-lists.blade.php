@@ -6,10 +6,8 @@
 
 @push('head')
     <link href="{{asset('plugins/datatables/datatables.min.css')}}" rel="stylesheet">
-    <link href="{{asset('plugins/select2/css/select2.css')}}" rel="stylesheet">
     <link href="{{asset('css/custom.css')}}" rel="stylesheet">
 @endpush
-
 
 @section('content')
 
@@ -138,8 +136,6 @@
 @push('scripts')
     <script src="{{asset('plugins/datatables/datatables.min.js')}}"></script>
     <script src="{{asset('js/pages/datatables.js')}}"></script>
-    <script src="{{asset('plugins/select2/js/select2.full.min.js')}}"></script>
-    <script src="{{asset('js/pages/select2.js')}}"></script>
     <script src="{{asset('js/autoreply.js')}}"></script>
     <script>
         function viewCampaignMessage(id) {

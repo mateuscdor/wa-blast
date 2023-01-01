@@ -83,10 +83,8 @@
 @endsection
 
 @push('scripts')
-    <script src="{{asset('js/pages/datatables.js')}}"></script>
-    <script src="{{asset('js/pages/select2.js')}}"></script>
     <script src="{{asset('plugins/datatables/datatables.min.js')}}"></script>
-    <script src="{{asset('plugins/select2/js/select2.full.min.js')}}"></script>
+    <script src="{{asset('js/pages/datatables.js')}}"></script>
     <script src="{{asset('js/autoreply.js')}}"></script>
 @endpush
 

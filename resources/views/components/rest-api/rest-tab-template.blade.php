@@ -2,8 +2,7 @@
     <code class="language-php php">
 &lt;?php
     $data = [
-        'api_key' => '{{$apiKey}}',
-        'sender' => 'Sender',
+        'api_key' => '{{$apiKey}}', // The sender number would be automatically added through this API KEY
         'number' => 'receiver',
         'message' => 'Your message',
         'footer' => 'Your footer message',
