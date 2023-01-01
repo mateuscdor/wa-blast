@@ -94,10 +94,14 @@ class User extends Authenticatable
 
         $user = $this;
         if($this->level_id === Level::LEVEL_CUSTOMER_SERVICE){
-            $user = $this->creator()->where('level_id', Level::LEVEL_ADMIN)->first();
+            $user = $this->creator()->first();
             if(!$user){
                 return "You don't have a subscription";
             }
+        }
+
+        if(in_array($user->level_id, [Level::LEVEL_SUPER_ADMIN, Level::LEVEL_RESELLER])){
+            return "Your account has a lifetime subscription.";
         }
 
         if($user->active_subscription == 'inactive'){
@@ -129,8 +133,11 @@ class User extends Authenticatable
 
         $user = $this;
         if($this->level_id === Level::LEVEL_CUSTOMER_SERVICE){
-            $user = $this->creator()->where('level_id', Level::LEVEL_ADMIN)->first();
+            $user = $this->creator()->first();
             if(!$user){
+                return false;
+            }
+            if(in_array($user->level_id, [Level::LEVEL_SUPER_ADMIN, Level::LEVEL_RESELLER])){
                 return false;
             }
         }
@@ -184,6 +191,11 @@ class User extends Authenticatable
     public function getHasLiveChatAttribute(){
         if(in_array($this->level_id, [Level::LEVEL_SUPER_ADMIN, Level::LEVEL_RESELLER])) {
             return true;
+        }
+        if($this->creator){
+            if(in_array($this->creator->level_id, [Level::LEVEL_SUPER_ADMIN, Level::LEVEL_RESELLER])){
+                return true;
+            }
         }
         if($this->is_expired_subscription){
             return false;

@@ -126,6 +126,9 @@ class AdminController extends Controller
                 } else {
                     return redirect()->back()->with('alert' , ['type' => 'danger', 'msg' => 'Cannot create new user, your subscription only provides ' . $package->users . ' users']);
                 }
+            } else {
+                $user->limit_device = 1000;
+                $user->active_subscription = "lifetime";
             }
         } else {
             $user->limit_device = $request->limit_device;

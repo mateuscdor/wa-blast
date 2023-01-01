@@ -50,12 +50,7 @@ class Conversation extends Model
     }
 
     public function getGroupUsersAttribute(){
-
         $user = Auth::user();
-
-        if(in_array($user->level_id, [Level::LEVEL_SUPER_ADMIN, Level::LEVEL_RESELLER])){
-            return collect([$user]);
-        }
 
         $number = $this->number;
         $admin = User::with('createdUsers')->find($number->user_id);
@@ -68,14 +63,9 @@ class Conversation extends Model
     public function getHasAccessAttribute(){
         $user = Auth::user();
 
-
         if(in_array($user->level_id, [Level::LEVEL_ADMIN, Level::LEVEL_SUPER_ADMIN, Level::LEVEL_RESELLER])){
             return $this->number && $this->number->user_id === $user->id;
         }
-        $creator = $user->creator;
-        if($creator && $creator->level_id === Level::LEVEL_ADMIN){
-            return $creator->id === $this->number->user_id;
-        }
-        return false;
+        return $user->registered_by === $this->number->user_id;
     }
 }

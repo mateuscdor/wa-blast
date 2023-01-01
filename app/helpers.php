@@ -33,7 +33,15 @@ function wrap_str($str = '', $first_delimiter = "'", $last_delimiter = null)
 
 function hasLiveChatAccess(){
     $package = Auth::user()->package;
-    return in_array(Auth::user()->level_id, [Level::LEVEL_RESELLER, Level::LEVEL_SUPER_ADMIN]) || ($package && $package->live_chat);
+    $user = Auth::user();
+    $creator = $user->creator;
+    if(in_array(Auth::user()->level_id, [Level::LEVEL_RESELLER, Level::LEVEL_SUPER_ADMIN])){
+        return true;
+    }
+    if($creator && in_array($creator->level_id, [Level::LEVEL_RESELLER, Level::LEVEL_SUPER_ADMIN])){
+        return true;
+    }
+    return ($package && $package->live_chat);
 }
 function getLastJSTime(){
     return \Illuminate\Support\Str::random();

@@ -69,6 +69,6 @@ io.on('connection', (socket) => {
        wa.deleteCredentials(device,io)
     })
 })
-server.listen(port, "127.0.0.1", log.info(`Server run and listening port: ${port}`))
+server.listen(port, log.info(`Server run and listening port: ${port}`))
 
 // console.log(Object.keys(server))

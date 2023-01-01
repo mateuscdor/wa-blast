@@ -21,7 +21,6 @@ use App\Http\Controllers\RestapiController;
 use App\Http\Controllers\ScanController;
 use App\Http\Controllers\ScheduleMessageController;
 use App\Http\Controllers\SettingController;
-use App\Http\Controllers\StorageController;
 use App\Http\Controllers\SystemController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\UserController;
@@ -112,7 +111,6 @@ Route::middleware(['installed.app','auth'])->group(function (){
     Route::get('/blast/template-message',[BlastController::class,'getPageBlastTemplate']);
     Route::get('/blast/histories/{blast:campaign_id}',[BlastController::class,'histories'])->name('blastHistories');
 
-    Route::get('/message/test',[MessagesController::class,'index'])->name('messagetest');
     Route::get('/message/test',[MessagesController::class,'index'])->name('messagetest');
 
     Route::post('/message/test/text',[MessagesController::class,'textMessageTest'])->name('textMessageTest');

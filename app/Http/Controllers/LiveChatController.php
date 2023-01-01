@@ -23,10 +23,9 @@ class LiveChatController extends Controller
     //
     public function index(){
         $package = Auth::user()->package;
-        if(!in_array(Auth::user()->level_id, [Level::LEVEL_RESELLER, Level::LEVEL_SUPER_ADMIN])){
-            if(!$package || !$package->live_chat) {
-                throw new NotFoundHttpException();
-            }
+
+        if(!hasLiveChatAccess()){
+            throw new NotFoundHttpException();
         }
 
         $device = Number::with(['user'])->whereHas('user', function($q){
@@ -34,6 +33,12 @@ class LiveChatController extends Controller
                 $q->where('id', Auth::user()->id)->where('level_id', Level::LEVEL_CUSTOMER_SERVICE);
             });
         })->where('live_chat', 1)->first();
+
+        if($device){
+            $res = Http::withoutVerifying()->asForm()->post(env('WA_URL_SERVER') . '/backend-initialize', [
+                'token' => $device->body,
+            ]);
+        }
 
         $groups = ConversationGroup::whereHas('creator', function($q){
             $q->where('id', Auth::user()->id)->orWhereHas('createdUsers', function($q){

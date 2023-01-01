@@ -9,23 +9,22 @@
 {{--    <link href="{{asset('plugins/select2/css/select2.css')}}" rel="stylesheet">--}}
 @endpush
 
-@if (session()->has('alert'))
-    <x-alert>
-        @slot('type',session('alert')['type'])
-        @slot('msg',session('alert')['msg'])
-    </x-alert>
-@endif
-@if ($errors->any())
-    <div class="alert alert-danger">
-        <ul>
-            @foreach ($errors->all() as $error)
-                <li>{{ $error }}</li>
-            @endforeach
-        </ul>
-    </div>
-@endif
-
 @section('content')
+    @if (session()->has('alert'))
+        <x-alert>
+            @slot('type',session('alert')['type'])
+            @slot('msg',session('alert')['msg'])
+        </x-alert>
+    @endif
+    @if ($errors->any())
+        <div class="alert alert-danger">
+            <ul>
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
     <div class="card-header d-flex justify-content-between">
 
         <button type="button" class="btn btn-primary " data-bs-toggle="modal" data-bs-target="#selectNomor"><i class="material-icons-outlined">contacts</i>Fetch From Groups WA</button>
