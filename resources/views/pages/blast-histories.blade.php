@@ -49,23 +49,16 @@
 
                             <tr>
                                 <td>{{$history->receiver}}</td>
-                                <td>
-                                    @php
-                                        if($history->status == 'pending')
-                                        {
-                                            echo '<span class="badge badge-warning">Pending</span>';
-                                        }
-                                        elseif($history->status == 'success')
-                                        {
-                                            echo '<span class="badge badge-success">Success</span>';
-                                        }
-                                        elseif($history->status == 'failed')
-                                        {
-                                            echo '<span class="badge badge-danger">Failed</span>';
-                                        }
-                                    @endphp
+                                <td id="blast_status_{{$history->id}}">
+                                    @if($history->status == 'pending')
+                                        <span class="badge badge-warning">Pending</span>
+                                    @elseif($history->status == 'success')
+                                        <span class="badge badge-success">Success</span>
+                                    @elseif($history->status == 'failed')
+                                        <span class="badge badge-danger">Failed</span>
+                                    @endif
                                 </td>
-                                <td>{{$history->updated_at}}</td>
+                                <td id="blast_updated_{{$history->id}}">{{$history->updated_at}}</td>
 
                             </tr>
                         @endforeach
@@ -86,5 +79,50 @@
     <script src="{{asset('plugins/datatables/datatables.min.js')}}"></script>
     <script src="{{asset('js/pages/datatables.js')}}"></script>
     <script src="{{asset('js/autoreply.js')}}"></script>
+    <script>
+        function convertTZ(date, tzString) {
+            return new Date((typeof date === "string" ? new Date(date) : date).toLocaleString("en-US", {timeZone: tzString}));
+        }
+        function convertDate(date){
+            let months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            let dates = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            let month = months[date.getMonth()];
+            let day = dates[date.getDay()];
+            let year = date.getFullYear();
+            let hours = `${date.getHours()}`.padStart(2, '0');
+            let minutes = `${date.getMinutes()}`.padStart(2, '0');
+            let seconds = `${date.getSeconds()}`.padStart(2, '0');
+
+            return [`${date.getDate()}`.padStart(2, '0'), month, year, [hours, minutes, seconds].join(':')].join(' ');
+        }
+        const refreshData = function(){
+            $.ajax({
+                url: '{{route('blastDatatable', $campaign_id)}}',
+                type: 'GET',
+                dataType: 'json',
+                success: (result) => {
+                    for(let history of result.histories){
+                        if(history.status === 'pending'){
+                            $('#blast_status_' + history.id).html($('<span class="badge badge-warning">Pending</span>'))
+                        } else if(history.status === 'success'){
+                            $('#blast_status_' + history.id).html($('<span class="badge badge-success">Success</span>'))
+                        } else {
+                            $('#blast_status_' + history.id).html($('<span class="badge badge-danger">Failed</span>'))
+                        }
+                        let timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                        let date = convertDate(new Date(history.updated_at));
+                        $('#blast_updated_' + history.id).text(date);
+
+                    }
+                },
+                error: (error) => {
+                    console.log(error);
+                }
+            })
+        }
+        setInterval(()=>{
+            refreshData();
+        }, 3000)
+    </script>
 @endpush
 

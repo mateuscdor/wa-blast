@@ -6,17 +6,14 @@
                     <li class="nav-item">
                         <a class="nav-link hide-sidebar-toggle-button" href="#"><i class="material-icons">first_page</i></a>
                     </li>
-
                 </ul>
-
             </div>
             <div class="d-flex">
-
                 <ul class="navbar-nav">
-
-
                     <li class="nav-item hidden-on-mobile">
-                        <a class="nav-link nav-notifications-toggle" id="notificationsDropDown" href="#" data-bs-toggle="dropdown">4</a>
+                        <a class="nav-link nav-notifications-toggle" id="notificationsDropDown" href="#" data-bs-toggle="dropdown">
+                            <img class="w-100 h-100" style="object-fit: cover; -o-object-fit: cover" src="{{asset(getSystemSettings('logo', 'images/avatars/avatar2.png'))}}">
+                        </a>
                         <div class="dropdown-menu dropdown-menu-end notifications-dropdown" aria-labelledby="notificationsDropDown">
                             <form action="{{route('logout')}}" method="POST">
                                 @csrf

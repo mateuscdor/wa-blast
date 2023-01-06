@@ -101,6 +101,7 @@ Route::middleware(['installed.app','auth'])->group(function (){
 
     Route::get('/campaigns',[CampaignController::class,'lists'])->name('campaign.lists');
     Route::get('/campaign/show/{id}',[CampaignController::class,'show'])->name('campaign.show');
+    Route::get('/campaign/datatable',[CampaignController::class,'datatable'])->name('campaign.datatable');
     Route::delete('/delete-all-campaigns',[CampaignController::class,'destroyAll'])->name('campaigns.delete.all');
 
     Route::post('/blast',[BlastController::class,'blastProcess'])->name('blast');
@@ -110,6 +111,7 @@ Route::middleware(['installed.app','auth'])->group(function (){
     Route::get('/blast/button-message',[BlastController::class,'getPageBlastButton']);
     Route::get('/blast/template-message',[BlastController::class,'getPageBlastTemplate']);
     Route::get('/blast/histories/{blast:campaign_id}',[BlastController::class,'histories'])->name('blastHistories');
+    Route::get('/blast/datatable/{blast:campaign_id}',[BlastController::class,'datatable'])->name('blastDatatable');
 
     Route::get('/message/test',[MessagesController::class,'index'])->name('messagetest');
 
@@ -148,7 +150,7 @@ Route::middleware(['installed.app','auth'])->group(function (){
 
     Route::get('/livechat', [LiveChatController::class, 'index'])->name('livechat.lists');
     Route::get('/livechat/{id}', [LiveChatController::class, 'show'])->name('livechat.view');
-    Route::get('/livechat/delete/{id}', [LiveChatController::class, 'index'])->name('livechat.delete');
+    Route::delete('/livechat/delete/{id}', [LiveChatController::class, 'delete'])->name('livechat.delete');
     Route::post('/livechat/switch/{id}', [LiveChatController::class, 'switchChat'])->name('livechat.switch');
     Route::post('/livechat/refresh/{id}', [LiveChatController::class, 'refresh'])->name('livechat.refresh');
     Route::post('/livechat/send-message/{id}', [LiveChatController::class, 'send'])->name('livechat.sendMessage');

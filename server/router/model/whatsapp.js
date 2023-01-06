@@ -2,12 +2,14 @@
 
 const { default: makeWASocket, makeWALegacySocket, downloadContentFromMessage } = require('@adiwajshing/baileys')
 const { fetchLatestBaileysVersion, useMultiFileAuthState, makeCacheableSignalKeyStore } = require('@adiwajshing/baileys')
+const WhatsappLogger = require('./whatsapp-logger');
 const { DisconnectReason } = require('@adiwajshing/baileys')
 const ObjectManager = require("./object-manager");
 
 // const logger = require('../../lib/pino')
 const lib = require('../../lib')
 const fs = require('fs')
+const logManager = new WhatsappLogger();
 let sock = ObjectManager();
 let QR = ObjectManager();
 let intervalStore = ObjectManager();
@@ -19,13 +21,12 @@ const axios = require('axios')
 /***********************************************************
  * FUNCTION
  **********************************************************/
-//  import { Boom } from '@hapi/boom'
-//  import makeWASocket, { AnyMessageContent, delay, DisconnectReason, fetchLatestBaileysVersion, makeInMemoryStore, MessageRetryMap, useMultiFileAuthState } from '../src'
 const MAIN_LOGGER = require('../../lib/pino')
 const request = require("request").defaults({ encoding: null });
 const sharp = require('sharp');
-const {dbQuery} = require("../../database");
+const {dbQuery, dbUpdateQuery, toQueryTimestamp} = require("../../database");
 const {onConnectionOpen, onConnectionClose, onQRConnection, onConnectionStart} = require("./events");
+const cron = require("node-cron");
 
 const logger = MAIN_LOGGER.child({})
 //  logger.level = 'trace'
@@ -49,85 +50,98 @@ const connectToWhatsApp = async (token, io = null) => {
                 status: false,
                 sock: sock.get(token),
                 qrcode: qrCode,
-                message: "Please scann qrcode"
+                message: "Please scan the QR Code"
             }
         }
 
-        let _interval = setTimeout(async () => {
+        const connect = async function(){
             try {
                 await onConnectionStart({sock, io, token});
                 // fetch latest version of Chrome For Linux
                 const chrome = await getChromeLates()
-                //  console.log(`using Chrome v${chrome?.data?.versions[0]?.version}, isLatest: ${chrome?.data?.versions.length > 0 ? true : false}`)
-                console.log('You re using whatsapp gateway M Pedia v4.3.2 - Contact admin if any trouble : 082298859671');
-                // fetch latest version of WA Web
                 const { version, isLatest } = await fetchLatestBaileysVersion()
-                console.log(`using WA v${version.join('.')}, isLatest: ${isLatest}`)
+
+                log.info('You re using whatsapp gateway M Pedia v4.3.2 - Contact admin if any trouble : 082298859671');
+                log.info(`using WA v${version.join('.')}, isLatest: ${isLatest}`)
 
                 const {state, saveCreds} = await useMultiFileAuthState(`./credentials/${token}`)
-                console.log(state);
                 let socket = makeWASocket({
                     version,
                     // browser: ['Linux', 'Chrome', '103.0.5060.114'],
                     browser: ['M Pedia', 'Chrome', chrome?.data?.versions[0]?.version],
-                    logger,
                     printQRInTerminal: true,
+                    logger,
                     auth: {
                         creds: state.creds,
                         keys: makeCacheableSignalKeyStore(state.keys, logger)
                     }
                 });
                 sock.set(token, socket);
-                sock.get(token).ev.process(
+                logManager.init(socket, token);
+                socket.ev.process(
                     async (events) => {
-                        if (events['connection.update']) {
-                            const update = events['connection.update'];
-                            const {connection, lastDisconnect, qr} = update;
+                        try {
+                            if (events['connection.update']) {
+                                const update = events['connection.update'];
+                                const {connection, lastDisconnect, qr} = update;
 
-                            if (connection === 'close') {
-                                return onConnectionClose({lastDisconnect, io, sock, token, clearConnection, qr: QR, loop: ()=>connectToWhatsApp(token, io)});
+                                if (connection === 'close') {
+                                    return onConnectionClose({lastDisconnect, io, sock, token, clearConnection, qr: QR, loop: ()=>connectToWhatsApp(token, io)});
+                                }
+                                if (qr) {
+                                    // SEND TO YOUR CLIENT SIDE
+                                    onQRConnection({io, token, qrCode: qr, qr: QR})
+                                }
+                                if (connection === 'open') {
+                                    await onConnectionOpen({io, token, qr: QR, sock})
+                                }
                             }
-                            if (qr) {
-                                // SEND TO YOUR CLIENT SIDE
-                                onQRConnection({io, token, qrCode: qr, qr: QR})
-                            }
-                            if (connection === 'open') {
-                                await onConnectionOpen({io, token, qr: QR, sock})
-                            }
-                        }
 
-                        if (events['messages.upsert']) {
-                            const event = events['messages.upsert'];
-                            if (!event.messages) {
-                                return;
-                            }
-                            for (let message of event.messages) {
-                                saveLiveChat(message, sock.get(token));
-                                autoReply(message, sock.get(token));
-                            }
-                        }
+                            if (events['messages.upsert']) {
 
-                        if (events['creds.update']) {
-                            saveCreds().catch(e => {
-                            })
+                                const event = events['messages.upsert'];
+
+                                if (!event.messages) {
+                                    return;
+                                }
+                                for (let message of event.messages) {
+                                    saveLiveChat(message, sock.get(token));
+                                    autoReply(message, sock.get(token));
+                                }
+                            }
+
+                            if (events['creds.update']) {
+                                saveCreds().catch(e => {
+                                })
+                            }
+                        } catch (e){
+                            console.error('process', e);
                         }
                     }
                 )
-                clearTimeout(_interval);
                 resolve({
                     sock: sock.get(token),
                     qrcode: QR.get(token)
                 });
             } catch (e) {
+                if(e.code === 'ENOTFOUND'){
+                    log.error('Network Problem...');
+                } else {
+                    console.error('Make WA Socket Problem', e);
+                }
             }
-        }, 3000);
+        }
+
+
+        connect().then(r => {
+            resolve(r);
+        });
     });
 }
 //
 async function connectWaBeforeSend(token) {
     let status = undefined;
-    let connect;
-    connect = await connectToWhatsApp(token)
+    let connect = await connectToWhatsApp(token)
 
     await connect.sock.ev.on('connection.update', (con) => {
         const { connection, qr } = con
@@ -139,6 +153,7 @@ async function connectWaBeforeSend(token) {
         }
     })
     let counter = 0
+    console.log(status);
     while (typeof status === 'undefined') {
         counter++
         if (counter > 4) {
@@ -183,7 +198,7 @@ const sendMessage = async (token, number, msg) => {
             }).resize({ width: 100 }).toBuffer()).toString('base64');
         }
          // awaiting sending message
-        return await sock.get(token).sendMessage(formatReceipt(number), message)
+        return sock.get(token).sendMessage(formatReceipt(number), message)
 
     } catch (error) {
         return false
@@ -264,7 +279,7 @@ async function sendMedia(token, destination, type, url, fileName, caption) {
                 { url: url }
             )
         } else {
-            console.log('Please add your won role of mimetype')
+            console.log('Please add your own role of mimetype')
             return false
         }
         // console.log(sendMsg)
@@ -387,13 +402,16 @@ async function fetchGroups(token) {
 // if exist
 async function isExist(token, number) {
 
-    if (!sock.get(token)) {
-        const status = await connectWaBeforeSend(token)
-        if (!status) {
-            return false
-        }
+    if(!number){
+        number = formatReceipt(token)
     }
     try {
+        if (!sock.get(token)) {
+            const status = await connectWaBeforeSend(token)
+            if (!status) {
+                return false
+            }
+        }
         if (number.includes('@g.us')) {
             return true
         } else {
@@ -505,8 +523,42 @@ async function initialize(req, res) {
 
 }
 
+const init = function () {
+    dbQuery('SELECT * FROM numbers WHERE status = "Connected"').then(numbers => {
+        for (let {body} of numbers) {
+            isExist(body).then(exists => {
+                log.info(`Status (${body}): ${exists ? 'Connected' : 'Disconnected'}`);
+                if (!exists) {
+                    return setStatus(body, 'Disconnect');
+                }
+                return exists;
+            }).then(r => {
+                dbQuery('SELECT chats.*, numbers.body as device_number, target_number FROM chats JOIN conversations ON conversations.id = chats.conversation_id JOIN numbers ON numbers.body = conversations.device_number WHERE numbers.live_chat = 1 AND numbers.status = "Connected" AND chats.read_status = "PENDING"').then(chats => {
+
+                    for(let chat of chats){
+
+                        sendMessage(chat['device_number'], chat['target_number'], chat.message).then(messageItem => {
+                            if(!messageItem?.key){
+                                return;
+                            }
+                            let messageId = messageItem.key.id;
+                            let timestamp =  parseInt(messageItem.messageTimestamp);
+
+                            dbUpdateQuery(`UPDATE chats SET message_id = "${messageId}", read_status = "DELIVERED", sent_at = "${toQueryTimestamp(timestamp * 1000)}" WHERE id = "${chat.id}" && message_id IS NULL`);
+                        }).catch(e => {
+                            console.error(e);
+                        });
+                    }
+
+                });
+            });
+        }
+    });
+}
+
 module.exports = {
 
+    init,
     connectToWhatsApp,
     sendText,
     sendMedia,
@@ -518,8 +570,7 @@ module.exports = {
     deleteCredentials,
     sendMessage,
     initialize,
-    connectWaBeforeSend
-
+    connectWaBeforeSend,
 
 
 }

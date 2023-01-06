@@ -127,7 +127,7 @@ const fetchGroups = async (req, res) => {
 const blast = async (req, res) => {
     const dat = req.body.data;
     const data = JSON.parse(dat);
-    const delay = req.body.delay ?? 1;
+    const delay = req.body.delay ?? 3;
 
 
     const check = await wa.isExist(data[0].sender, formatReceipt(data[0].sender));
@@ -144,22 +144,26 @@ const blast = async (req, res) => {
             setTimeout(() => { resolve('') }, milisec);
         })
     }
-    await asyncForEach(data, async (item, index) => {
-              const { sender, receiver, message, campaign_id } = item;
-       
-        if (sender && receiver && message) {
+    try {
+        await asyncForEach(data, async (item, index) => {
+            const { sender, receiver, message, campaign_id } = item;
+            console.log(item);
+            if (sender && receiver && message) {
 
-            const sendingTextMessage = await wa.sendMessage(sender, receiver, message)
+                const sendingTextMessage = await wa.sendMessage(sender, receiver, message)
 
-            if (sendingTextMessage) {
-                successNumber.push(receiver);
-            } else { 
-                failedNumber.push(receiver);
+                if (sendingTextMessage) {
+                    successNumber.push(receiver);
+                } else {
+                    failedNumber.push(receiver);
+                }
             }
-        }
 
-        await waitforme(delay * 1000);
-    })
+            await waitforme(delay * 1000);
+        })
+    } catch (e){
+        console.error(e);
+    }
 
     return res.send({ status: true, success: successNumber, failed: failedNumber })
 
@@ -183,10 +187,6 @@ const direct = async function (req, res) {
     const dat = req.body.data;
     const data = JSON.parse(dat);
 
-    const check = await wa.isExist(data.sender, formatReceipt(data.sender));
-    if (!check) {
-        return res.send({ status: false, message: 'Check your whatsapp connection' })
-    }
     const {sender, receiver, message, chat_id: chatId} = data;
 
     if (sender && receiver && message && chatId) {
@@ -195,24 +195,28 @@ const direct = async function (req, res) {
             if(!messageItem?.key){
                 return;
             }
-           let messageId = messageItem.key.id;
+            let messageId = messageItem.key.id;
             let timestamp =  parseInt(messageItem.messageTimestamp);
-            console.log(messageItem);
 
             dbUpdateQuery(`UPDATE chats SET message_id = "${messageId}", read_status = "DELIVERED", sent_at = "${toQueryTimestamp(timestamp * 1000)}" WHERE id = "${chatId}" && message_id IS NULL`);
         }).catch(e => {
             console.log(e);
         });
+        if(res){
+            return res.send({
+                status: true,
+                message: "Whatsapp is sending message"
+            })
+        }
+    }
+    if(res){
         return res.send({
-            status: true,
-            message: "Whatsapp is sending message"
+            status: false,
+            message: "Bad Request"
         })
     }
-    return res.send({
-        status: false,
-        message: "Bad Request"
-    })
 }
+
 
 module.exports = {
 
@@ -222,7 +226,6 @@ module.exports = {
     sendButtonMessage,
     sendTemplateMessage,
     sendListMessage,
-
     deleteCredentials,
     fetchGroups,
     blast,

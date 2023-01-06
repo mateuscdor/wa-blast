@@ -34,12 +34,6 @@ class LiveChatController extends Controller
             });
         })->where('live_chat', 1)->first();
 
-        if($device){
-            $res = Http::withoutVerifying()->asForm()->post(env('WA_URL_SERVER') . '/backend-initialize', [
-                'token' => $device->body,
-            ]);
-        }
-
         $groups = ConversationGroup::whereHas('creator', function($q){
             $q->where('id', Auth::user()->id)->orWhereHas('createdUsers', function($q){
                 $q->where('id', Auth::user()->id)->where('level_id', Level::LEVEL_CUSTOMER_SERVICE);
@@ -206,6 +200,23 @@ class LiveChatController extends Controller
             'sent' => false,
             'message' => 'Ajax required'
         ];
+    }
+
+    public function delete(Request $request, $id){
+        $conversation = Conversation::findOrFail($id);
+        if(!$conversation->has_access){
+            return new NotFoundHttpException;
+        }
+        if(!$conversation->can_send_message){
+            return redirect()->back();
+        }
+
+        $conversation->chats()->delete();
+        $conversation->delete();
+        return redirect()->back()->with('alert', [
+            'type' => 'success',
+            'msg' => 'Your conversation has been deleted.',
+        ]);;
     }
 
     public function switchChat(Request $request, $id){

@@ -10,7 +10,7 @@ const logger = pino({
         options: {
             translateTime: 'SYS:standard',
             ignore: 'hostname,pid',
-            singleLine: false,
+            singleLine: true,
             colorize: true,
             levelFirst: true,
             append: true, // the file is opened with the 'a' flag
@@ -18,7 +18,7 @@ const logger = pino({
         }
     },
     // level: process.env.NODE_ENV === 'production' ? 'info' : 'debug'
-    level: 'info'
+    level: 'info',
 })
 
 module.exports = logger

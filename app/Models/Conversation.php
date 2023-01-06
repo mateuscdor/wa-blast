@@ -53,7 +53,11 @@ class Conversation extends Model
         $user = Auth::user();
 
         $number = $this->number;
-        $admin = User::with('createdUsers')->find($number->user_id);
+        $admin = User::with([
+            'createdUsers' => function($q){
+                $q->where('level_id', Level::LEVEL_CUSTOMER_SERVICE);
+            }
+        ])->find($number->user_id);
         if(!$admin){
             return collect([]);
         }

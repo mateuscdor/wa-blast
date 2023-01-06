@@ -84,6 +84,9 @@ class User extends Authenticatable
     public function liveChatNumber(){
         return $this->hasOne(Number::class)->where('live_chat', 1);
     }
+    public function messageTemplates(){
+        return $this->hasMany(UserTemplate::class);
+    }
 
     // get expired subscription
     public function getExpiredSubscriptionAttribute(){

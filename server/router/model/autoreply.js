@@ -30,6 +30,7 @@ const autoReply = async (msg, sock) => {
         const body = (type === 'conversation' && msg.message.conversation) ? msg.message.conversation : (type == 'imageMessage') && msg.message.imageMessage.caption ? msg.message.imageMessage.caption : (type == 'videoMessage') && msg.message.videoMessage.caption ? msg.message.videoMessage.caption : (type == 'extendedTextMessage') && msg.message.extendedTextMessage.text ? msg.message.extendedTextMessage.text : (type == 'messageContextInfo') && msg.message.listResponseMessage?.title ? msg.message.listResponseMessage.title : (type == 'messageContextInfo') ? msg.message.buttonsResponseMessage.selectedDisplayText : ''
         const d = body.toLowerCase()
         const command = await removeForbiddenCharacters(d);
+
         const senderName = msg?.pushName || '';
         const from = msg.key.remoteJid.split('@')[0];
         let bufferImage;
@@ -48,10 +49,12 @@ const autoReply = async (msg, sock) => {
                 quality: 30
             }).resize({ width: 100 }).toBuffer()).toString('base64');
         }
-        if (msg.key.fromMe === false) return;
+
+        if (msg.key.fromMe === true) return;
         let reply;
 
         let result;
+
         const equal = await dbQuery(`SELECT * FROM autoreplies WHERE keyword = "${command}" AND type_keyword = 'Equal' AND device = ${sock.user.id.split(':')[0]} LIMIT 1`);
         if (equal.length === 0) {
             // select locate
@@ -191,10 +194,6 @@ const saveLiveChat = async function(msg, sock){
         } else {
             image = null;
 
-        }
-
-        if(fromMe){
-            return;
         }
 
         const me = sock.user.id.split(':')[0];

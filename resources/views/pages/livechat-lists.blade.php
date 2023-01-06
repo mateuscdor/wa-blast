@@ -402,7 +402,7 @@
         let selected = {};
         let selectedGroup = '{{(isset($groups[0])? $groups[0]->id: '')}}';
         $('table.display').DataTable();
-        $('.nav-link').click(function(){
+        $('.nav-link[id^="nav_group"]').click(function(){
             let id = $(this).attr('id').replace('nav_group_', '');
             if(id === 'default'){
                 selectedGroup = '';

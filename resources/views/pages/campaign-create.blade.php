@@ -105,8 +105,32 @@
                                                 </div>
                                             </div>
 
+                                            <div class="row mt-2">
+                                                <div class="col">
+                                                    <div class="form-switch">
+                                                        <input class="form-check-input" type="checkbox" id="created_template">
+                                                        <label class="form-check-label" for="created_template">Use Created Template</label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="divider mt-2 mb-2"></div>
 
-                                            @include('components.creators.reply-creator')
+                                            <div id="reply_creator" class="row">
+                                                <div class="col">
+                                                    @include('components.creators.reply-creator')
+                                                </div>
+                                            </div>
+                                            <div id="message_templates">
+                                                <div>
+                                                    <label for="msg_template" class="form-label">Message Template</label>
+                                                    <select name="message_template" id="msg_template" class="form-control" style="width: 100%; height:200px;">
+                                                        <option value="">Choose a template...</option>
+                                                        @foreach($templates as $template)
+                                                            <option value="{{$template->id}}">{{$template->label}}</option>
+                                                        @endforeach
+                                                    </select>
+                                                </div>
+                                            </div>
 
                                             {{-- button start --}}
                                             <div class="row">
@@ -136,6 +160,9 @@
     <script src="{{asset('plugins/select2/js/select2.full.min.js')}}"></script>
     <script>
 
+        let isUsingCreatedTemplate = false;
+        $('#message_templates').hide();
+
         // oncange, if tipe schedule datetime show
         $('#tipe').on('change', function() {
             if (this.value == 'schedule') {
@@ -145,19 +172,40 @@
             }
         });
 
+        $('#created_template').on('change', function(){
+           let checked = $(this).prop('checked');
+           if(checked){
+               isUsingCreatedTemplate = true;
+               $('#reply_creator').hide();
+               $('#message_templates').show();
+           } else {
+               isUsingCreatedTemplate = false;
+               $('#reply_creator').show();
+               $('#message_templates').hide();
+           }
+        });
+
         $('#form').on('submit', function(e){
             e.preventDefault();
 
             $('#startBlast').attr('disabled',true);
             $('#startBlast').html('Sending...');
 
-            const data = getAllValues();
+            let data;
+            if(isUsingCreatedTemplate){
+                data = {
+                    template_id: $('#msg_template').val(),
+                }
+            } else {
+                data = getAllValues();
+            }
 
             data.tag = $('#tag').val();
             data.sender = $('#sender').val();
             data.name = $('#name').val();
             data.start_date = $('#datetime2').val();
             data.start_time = $('#datetime3').val();
+            data.delay = $('#delay').val();
 
             const url = '{{route('blast')}}';
 
@@ -176,6 +224,7 @@
                 error : (err) => {
                     //console.log(err);
                     window.location = '';
+                    // console.log(err);
                     $('#startBlast').attr('disabled',false);
                     $('#startBlast').html('Start');
                 }

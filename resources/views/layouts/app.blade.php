@@ -34,6 +34,13 @@ Dilarang share atau menjual belikan source code ini tanpa izin ya bos! biar berk
     @stack('head')
     @stack('head-scripts')
     @stack('styles')
+    <style>
+        .nav-link.nav-notifications-toggle {
+            width: 35px;
+            height: 35px;
+            padding: 0!important;
+        }
+    </style>
 
 </head>
 

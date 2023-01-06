@@ -4,14 +4,18 @@ namespace App\Http\Controllers;
 
 use App\Models\CampaignTemplate;
 use App\Models\Tag;
+use App\Models\UserTemplate;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class CampaignController extends Controller
 {
     public function index(Request $request)
     {
+        $templates = Auth::user()->messageTemplates;
         return view('pages.campaign-create', [
             'tags' => $request->user()->tags,
+            'templates' => $templates,
         ]);
     }
 
@@ -141,6 +145,20 @@ class CampaignController extends Controller
         return json_encode([
             'status' => 'error',
             'msg' => 'You have another campaign in status processing or waiting',
+        ]);
+    }
+
+    public function datatable(Request $request){
+        $campaigns = $request->user()->campaigns()->withCount(['blasts','blasts as blasts_pending' => function($q){
+            return $q->where('status', 'pending');
+        }])->withCount(['blasts as blasts_success' => function($q){
+            return $q->where('status', 'success');
+        }])->withCount(['blasts as blasts_failed' => function($q){
+            return $q->where('status', 'failed');
+        }])->latest()->get();
+
+        return response()->json([
+           'data' => $campaigns
         ]);
     }
 }

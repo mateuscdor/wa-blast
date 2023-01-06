@@ -68,31 +68,31 @@
                                 <td>{{$campaign->name}}</td>
                                 <td><span class="badge badge-secondary badge-sm text-warning">{{$campaign->type}}</span></td>
                                 <td>
-                                    {{$campaign->blasts_count}} <span class="badge badge-primary">total</span>
+                                    <span id="blasts_count_{{$campaign->id}}">{{$campaign->blasts_count}}</span><span class="badge badge-primary">total</span>
                                     <br>
-                                    {{$campaign->blasts_success}} <span class="badge badge-success">Success</span>
+                                    <span id="blasts_success_{{$campaign->id}}">{{$campaign->blasts_success}}</span><span class="badge badge-success">Success</span>
                                     <br>
-                                    {{$campaign->blasts_failed}} <span class="badge badge-danger">Failed</span>
+                                    <span id="blasts_failed_{{$campaign->id}}">{{$campaign->blasts_failed}}</span><span class="badge badge-danger">Failed</span>
                                     <br>
-                                    {{$campaign->blasts_pending}} <span class="badge badge-warning">Waiting</span>
+                                    <span id="blasts_pending_{{$campaign->id}}">{{$campaign->blasts_pending}}</span><span class="badge badge-warning">Waiting</span>
                                     {{-- button view blasts list --}}
                                     <br>
-                                    <a href="{{route('blastHistories',$campaign->id)}}" class="btn btn-primary btn-sm">View All</a>
+                                    <a href="{{route('blastHistories',$campaign->id)}}" class="btn btn-primary btn-sm mt-1">View All</a>
                                 </td>
                                 <td><button class="btn btn-primary" onclick="viewCampaignMessage({{$campaign->id}})">View</button></td>
 
                                 <td>{{$campaign->schedule ?? '-'}}</td>
                                 <td >
                                     {{-- if status success badge success, if waiting badge warning if failed badge danger --}}
-                                    <span class="badge badge-{{$campaign->status === 'finish' ? 'success' : ($campaign->status === 'waiting' ? 'warning' : ($campaign->status === 'failed' ? 'danger' : 'primary'))}}">{{$campaign->status}}</span>
+                                    <span id="blasts_status_{{$campaign->id}}" class="badge badge-{{$campaign->status === 'finish' ? 'success' : ($campaign->status === 'waiting' ? 'warning' : ($campaign->status === 'failed' ? 'danger' : 'primary'))}}">{{$campaign->status}}</span>
                                     {{--  icon pause --}}
-                                    @if ($campaign->status === 'processing' || $campaign->status === 'waiting')
+                                    <div id="blasts_resume_{{$campaign->id}}" class="{{!($campaign->status === 'processing' || $campaign->status === 'waiting') ? 'd-none': ''}}">
                                         <button onclick="pauseCampaign({{$campaign->id}})" class="btn btn-warning btn-sm"><i class="material-icons">pause</i></button>
-                                    @endif
+                                    </div>
                                     {{-- icon play --}}
-                                    @if ($campaign->status === 'paused')
+                                    <div id="blasts_pause_{{$campaign->id}}" class="{{!($campaign->status === 'paused') ? 'd-none': ''}}">
                                         <button onclick="resumeCampaign({{$campaign->id}})" class="btn btn-success btn-sm"><i class="material-icons">play_arrow</i></button>
-                                    @endif
+                                    </div>
                                     {{-- icon delete --}}
 
                                 </td>
@@ -135,9 +135,12 @@
 
 @push('scripts')
     <script src="{{asset('plugins/datatables/datatables.min.js')}}"></script>
-    <script src="{{asset('js/pages/datatables.js')}}"></script>
+{{--    <script src="{{asset('js/pages/datatables.js')}}"></script>--}}
     <script src="{{asset('js/autoreply.js')}}"></script>
     <script>
+
+        const table = $('#datatable1').DataTable();
+
         function viewCampaignMessage(id) {
             $.ajax({
                 url: `/campaign/show/${id}`,
@@ -152,11 +155,8 @@
                     console.log(error);
                 }
             })
-            //
-
-            //
-
         }
+
         function pauseCampaign(id) {
             $.ajax({
                 url: `/campaign/pause/${id}`,
@@ -184,6 +184,49 @@
                 }
             })
         }
+
+        const refreshCampaigns = function(){
+            $.ajax({
+                url: `/campaign/datatable`,
+                type: 'GET',
+                dataType: 'json',
+                success: (result) => {
+                    for(let campaign of result.data){
+                        $('#blasts_count_' + campaign.id).text(campaign.blasts_count);
+                        $('#blasts_pending_' + campaign.id).text(campaign.blasts_pending);
+                        $('#blasts_success_' + campaign.id).text(campaign.blasts_success);
+                        $('#blasts_failed_' + campaign.id).text(campaign.blasts_failed);
+                        if(['finish', 'failed'].includes(campaign.status)){
+                            $('#blasts_resume_' + campaign.id).addClass('d-none');
+                            $('#blasts_pause_' + campaign.id).addClass('d-none');
+
+                            if(campaign.status === 'failed'){
+                                $('#blasts_status_' + campaign.id).attr('class', 'badge badge-danger');
+                            } else {
+                                $('#blasts_status_' + campaign.id).attr('class', 'badge badge-success');
+                            }
+
+                        } else if(['processing', 'waiting'].includes(campaign.status)){
+                            $('#blasts_resume_' + campaign.id).removeClass('d-none');
+                            $('#blasts_pause_' + campaign.id).addClass('d-none');
+                            $('#blasts_status_' + campaign.id).attr('class', 'badge badge-warning');
+                        } else {
+                            $('#blasts_resume_' + campaign.id).addClass('d-none');
+                            $('#blasts_pause_' + campaign.id).removeClass('d-none');
+                            $('#blasts_status_' + campaign.id).attr('class', 'badge badge-warning');
+                        }
+                        $('#blasts_status_' + campaign.id).text(campaign.status);
+                    }
+                },
+                error: (error) => {
+                    console.log(error);
+                }
+            })
+        }
+
+        setInterval(()=>{
+            refreshCampaigns();
+        }, [3000]);
 
     </script>
 @endpush

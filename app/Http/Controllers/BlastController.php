@@ -24,6 +24,18 @@ class BlastController extends Controller
             ->whereUserId(Auth::id())
             ->get();
         return view('pages.blast-histories', [
+            'campaign_id' => $campaign_id,
+            'histories' => $blasts->all(), //$request->user()->blasts()->latest()->get()
+        ]);
+    }
+
+    public function datatable($campaign_id)
+    {
+        $blasts = Blast::where('campaign_id', $campaign_id)
+            ->whereUserId(Auth::id())
+            ->get();
+        return response()->json([
+            'campaign_id' => $campaign_id,
             'histories' => $blasts->all(), //$request->user()->blasts()->latest()->get()
         ]);
     }
@@ -136,8 +148,25 @@ class BlastController extends Controller
                 return 'false';
             }
 
+            $messageType = $request->message_type;
             // create text
-            $msg = UserTemplate::parseRequest($request);
+            if($request->template_id){
+                $userTemplate = UserTemplate::where([
+                    'user_id' => Auth::id(),
+                    'id' => $request->template_id
+                ])->first();
+                if(!$userTemplate){
+                    session()->flash('alert', [
+                        'type' => 'danger',
+                        'msg' => 'Message Template Not Found',
+                    ]);
+                    return false;
+                }
+                $msg = $userTemplate->message;
+                $messageType = $msg['message_type'] ?? 'text';
+            } else {
+                $msg = UserTemplate::parseRequest($request);
+            }
 
             $contacts = Contact::whereTagId($request->tag)->get();
 
@@ -147,7 +176,7 @@ class BlastController extends Controller
                 'sender' => $request->sender,
                 'name' => $request->name,
                 'tag' => $request->tag,
-                'type' => $request->message_type,
+                'type' => $messageType,
                 'message' => json_encode($msg),
                 'delay' => $request->delay,
                 'status' => 'waiting',
@@ -165,7 +194,7 @@ class BlastController extends Controller
                         'sender' => $request->sender,
                         'receiver' => $contact->number,
                         'message' => json_encode(UserTemplate::generateFromMessage(json_decode($message))),
-                        'type' => $request->message_type,
+                        'type' => $messageType,
                         'status' => 'pending',
                         'created_at' => now(),
                     ];

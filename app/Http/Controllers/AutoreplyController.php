@@ -18,6 +18,7 @@ class AutoreplyController extends Controller
         return view('pages.autoreply',[
             'autoreplies' => Autoreply::where('user_id', Auth::id())->whereDevice(session()->get('selectedDevice'))->latest()->paginate(15),
             'numbers' => $request->user()->numbers()->get(),
+            'templates' => Auth::user()->messageTemplates
         ]);
     }
 
@@ -36,7 +37,25 @@ class AutoreplyController extends Controller
             return response()->json('error', 400);
         }
 
-        $msg = UserTemplate::parseRequest($request);
+        $messageType = $request->message_type;
+        // create text
+        if($request->template_id){
+            $userTemplate = UserTemplate::where([
+                'user_id' => Auth::id(),
+                'id' => $request->template_id
+            ])->first();
+            if(!$userTemplate){
+                session()->flash('alert', [
+                    'type' => 'danger',
+                    'msg' => 'Message Template Not Found',
+                ]);
+                return false;
+            }
+            $msg = $userTemplate->message;
+            $messageType = $msg['message_type'] ?? 'text';
+        } else {
+            $msg = UserTemplate::parseRequest($request);
+        }
 
         $message = UserTemplate::generateFromMessage(json_decode(json_encode($msg)));
 
@@ -47,7 +66,7 @@ class AutoreplyController extends Controller
             'device' => $request->device,
             'keyword' => $request->keyword,
             'type_keyword' => $request->type_keyword,
-            'type' => $request->message_type,
+            'type' => $messageType,
             'reply' => $jsonReply,
             'reply_when' => $request->reply_when
         ]);

@@ -3,6 +3,7 @@
 const fs = require('fs')
 const wa = require('./server/router/model/whatsapp')
 
+
 require('dotenv').config()
 const lib = require('./server/lib')
 global.log = lib.log
@@ -48,7 +49,7 @@ app.use((req, res, next) => {
  */
 // body parser
 const bodyParser = require('body-parser')
-const { dbQuery } = require('./server/database')
+const {init} = require("./server/router/model/whatsapp");
 // parse application/x-www-form-urlencoded
 
 app.use(bodyParser.urlencoded({ extended: false,limit: '50mb',parameterLimit: 100000 }))
@@ -70,5 +71,6 @@ io.on('connection', (socket) => {
     })
 })
 server.listen(port, log.info(`Server run and listening port: ${port}`))
+init();
 
 // console.log(Object.keys(server))

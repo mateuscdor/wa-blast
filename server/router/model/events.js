@@ -55,7 +55,7 @@ const onConnectionOpen = async function ({sock, io, token, qr}) {
     qr.remove(token);
 };
 
-const onConnectionClose = function({lastDisconnect, io, sock, token, clearConnection, qr, loop}){
+const onConnectionClose = function({lastDisconnect, io, sock, token, clearConnection, qr}){
 
     const number = getNumberFromSocket({sock, token});
 
@@ -66,7 +66,6 @@ const onConnectionClose = function({lastDisconnect, io, sock, token, clearConnec
             sock.get(token).ws.close()
             if (io != null) io.emit('reload-qr', { token: token, message: 'Request QR ended. reload scan to request QR again' })
         }
-        return loop();
     } else {
         if(token !== number){
             setStatus(token, 'Disconnect')

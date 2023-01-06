@@ -38,7 +38,8 @@ class ContactController extends Controller
             'user_id' => Auth::user()->id,
             'tag_id' => $request->tag,
             'name' => $request->name,
-            'number' => $request->number
+            'number' => $request->number,
+            'raw_values' => '[]'
         ]);
 
         return back()->with('alert',[

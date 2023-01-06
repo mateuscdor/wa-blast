@@ -20,6 +20,6 @@ class Blast extends Model
 
     public function getUpdatedAtAttribute($value)
     {
-        return \Carbon\Carbon::parse($value)->format('D M Y H:i:s');
+        return \Carbon\Carbon::parse($value)->setTimezone(auth()->user()->timezone)->format('d M Y H:i:s');
     }
 }

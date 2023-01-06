@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\MessageCast;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -20,7 +21,7 @@ class Chat extends Model
     ];
 
     protected $casts = [
-      'message' => 'json'
+        'message' => MessageCast::class,
     ];
 
     public function user(){

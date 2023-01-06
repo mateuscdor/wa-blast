@@ -38,7 +38,6 @@
 
                             @if(Session::has('selectedDevice'))
 
-
                                 <form action="{{route('deleteAllAutoreply')}}" method="POST">
                                     @method('delete')
                                     @csrf
@@ -152,11 +151,36 @@
                         </div>
                         <label for="keyword" class="form-label">Keyword</label>
                         <input type="text" name="keyword" class="form-control" id="keyword" required>
-                        @isset($template)
-                            @include('components.creators.reply-creator', ['initial' => $template])
-                        @else
-                            @include('components.creators.reply-creator')
-                        @endisset
+
+                        <div class="row mt-2">
+                            <div class="col">
+                                <div class="form-switch">
+                                    <input class="form-check-input" type="checkbox" id="created_template">
+                                    <label class="form-check-label" for="created_template">Use Created Template</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="divider mt-2 mb-2"></div>
+
+                        <div id="reply_creator" class="row">
+                            @isset($template)
+                                @include('components.creators.reply-creator', ['initial' => $template])
+                            @else
+                                @include('components.creators.reply-creator')
+                            @endisset
+                        </div>
+
+                        <div id="message_templates" class="row">
+                            <div class="col">
+                                <label for="msg_template" class="form-label">Message Template</label>
+                                <select name="message_template" id="msg_template" class="form-control" style="width: 100%;">
+                                    <option value="">Choose a template...</option>
+                                    @foreach($templates as $template)
+                                        <option value="{{$template->id}}">{{$template->label}}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -188,10 +212,34 @@
     {{-- <script src="{{asset('plugins/select2/js/select2.full.min.js')}}"></script> --}}
     <script src="{{asset('js/autoreply.js')}}"></script>
     <script>
+
+        let isUsingCreatedTemplate = false;
+        $('#message_templates').hide();
+
+        $('#created_template').on('change', function(){
+            let checked = $(this).prop('checked');
+            if(checked){
+                isUsingCreatedTemplate = true;
+                $('#reply_creator').hide();
+                $('#message_templates').show();
+            } else {
+                isUsingCreatedTemplate = false;
+                $('#reply_creator').show();
+                $('#message_templates').hide();
+            }
+        });
+
         $('#form').on('submit', function(e){
             e.preventDefault();
 
-            const data = getAllValues();
+            let data;
+            if(isUsingCreatedTemplate){
+                data = {
+                    template_id: $('#msg_template').val(),
+                }
+            } else {
+                data = getAllValues();
+            }
 
             data.label = $('#template_name').val();
             data.keyword = $('[name="keyword"]').val();

@@ -1,6 +1,6 @@
 <div>
     <label for="message_type" class="form-label">Message Type</label>
-    <select name="message_type" id="message_type" class="js-states form-control" tabindex="-1" required>
+    <select name="message_type" id="message_type" class="js-states form-control" tabindex="-1">
         <option value="" selected >Select One</option>
         <option value="text">Text Message</option>
         <option value="image">Image Message</option>
