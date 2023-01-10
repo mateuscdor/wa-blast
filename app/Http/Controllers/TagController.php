@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Contact;
+use App\Models\Conversation;
 use App\Models\Number;
 use App\Models\Tag;
 use Illuminate\Http\Request;
@@ -95,5 +96,57 @@ class TagController extends Controller
                 'contacts' => $contacts
             ])->render();
         }
+    }
+
+    public function livechatImport(Request $request){
+        $request->validate([
+            'book_id' => 'required|exists:tags,id',
+            'id' => 'required|array',
+            'id.*' => 'exists:conversations,id',
+        ]);
+
+        $conversations = Conversation::whereIn('id', $request->post('id'));
+        $tag = Tag::findOrFail($request->book_id);
+
+        foreach ($conversations as $conversation){
+            if(!$conversation->has_access){
+                return redirect()->back()->with('alert', [
+                    'type' => 'danger',
+                    'msg' => 'You don\'t have the access of these conversations',
+                ]);
+            }
+        }
+
+        $saved = 0;
+        foreach ($conversations as $conversation){
+            $contact = Contact::where([
+                'number' => $conversation->target_number,
+                'tag_id' => $tag->id,
+                'user_id' => Auth::id(),
+            ])->first();
+            if(!$contact){
+                $contact = new Contact([
+                    'name' => $conversation->target_name ?: $conversation->target_number,
+                    'number' => $conversation->target_number,
+                    'tag_id' => $tag->id,
+                    'user_id' => Auth::id(),
+                    'raw_values' => '[]',
+                ]);
+                $contact->save();
+                $saved += 1;
+            }
+        }
+
+        if(!$saved){
+            return redirect()->back()->with('alert', [
+                'type' => 'warning',
+                'msg' => 'Contact already exists on ' . $tag->name,
+            ]);
+        }
+
+        return redirect()->back()->with('alert', [
+            'type' => 'success',
+            'msg' => $saved . ' contacts have been added to phonebook ' . $tag->name,
+        ]);
     }
 }

@@ -6,7 +6,6 @@
 
 @push('head')
     <link href="{{asset('plugins/datatables/datatables.min.css')}}" rel="stylesheet">
-    <link href="{{asset('plugins/select2/css/select2.css')}}" rel="stylesheet">
 
     <script src="{{asset('js/pages/datatables.js')}}"></script>
     <script src="{{asset('plugins/datatables/datatables.min.js')}}"></script>
@@ -23,7 +22,6 @@
         <div class="container-fluid">
             <div class="row">
                 <div class="col">
-                    <link href="{{asset('plugins/select2/css/select2.css')}}" rel="stylesheet">
                     <div class="card">
 
                         <div class="row">
@@ -57,7 +55,7 @@
                                                 <div class="col-md-6">
                                                     <div class="form-group">
                                                         <label for="name" class="form-label">Campaign Name</label>
-                                                        <input type="text" class="form-control" id="name" name="name" placeholder="Campaign 1">
+                                                        <input type="text" required class="form-control" id="name" name="name" placeholder="Campaign 1">
                                                     </div>
                                                 </div>
                                                 <div class="col-md-6">
@@ -70,7 +68,7 @@
 
                                             <div class="tagsOption">
                                                 <label for="inputEmail4" class="form-label">Phone Book</label>
-                                                <select name="tag" id="tag" class="form-control" style="width: 100%; height:200px;">
+                                                <select name="tag" required id="tag" class="form-control" style="width: 100%;">
                                                     <option value="">Pilih Phone Book</option>
                                                     @foreach ($tags as $tag)
                                                         <option value="{{$tag->id}}">{{$tag->name}}</option>
@@ -82,7 +80,7 @@
 
                                                 <div class="col ">
                                                     <label for="tipe" class="form-label">Type</label>
-                                                    <select name="tipe" id="tipe" class="form-control" style="width: 100%; height:200px;">
+                                                    <select name="tipe" id="tipe" class="form-control" style="width: 100%;">
                                                         <option value="immediately">Immediately</option>
                                                         <option value="schedule">Schedule</option>
                                                     </select>
@@ -101,7 +99,7 @@
                                             <div class="row">
                                                 <div class="col">
                                                     <label for="delay" class="form-label">Delay (seconds)</label>
-                                                    <input type="number" value="3" id="delay" min="1" max="60" name="delay" class="form-control"  required>
+                                                    <input type="number" required value="3" id="delay" min="1" max="60" name="delay" class="form-control"  required>
                                                 </div>
                                             </div>
 
@@ -123,7 +121,7 @@
                                             <div id="message_templates">
                                                 <div>
                                                     <label for="msg_template" class="form-label">Message Template</label>
-                                                    <select name="message_template" id="msg_template" class="form-control" style="width: 100%; height:200px;">
+                                                    <select name="message_template" id="msg_template" class="form-control" style="width: 100%;">
                                                         <option value="">Choose a template...</option>
                                                         @foreach($templates as $template)
                                                             <option value="{{$template->id}}">{{$template->label}}</option>
@@ -156,8 +154,6 @@
 @push('scripts')
     <script src="{{asset('js/autoreply.js')}}"></script>
 
-    <script src="{{asset('js/pages/select2.js')}}"></script>
-    <script src="{{asset('plugins/select2/js/select2.full.min.js')}}"></script>
     <script>
 
         let isUsingCreatedTemplate = false;

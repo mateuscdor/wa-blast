@@ -45,7 +45,7 @@ class AdminController extends Controller
             'username' => 'required|unique:users',
             'email' => 'required|unique:users',
             'password' => 'required',
-//            'limit_device' => 'required|numeric|max:10',
+            'max_admin_account' => 'nullable|max:10',
 //            'active_subscription' => 'required|',
             'level_id' => 'required|exists:levels,id',
             'display_name' => 'required|string',
@@ -54,13 +54,20 @@ class AdminController extends Controller
         $user = new User();
         $requestLevelId = intval($request->level_id);
         $authLevelId = Auth::user()->level_id;
+        $maxAdminAccount = $request->max_admin_account;
 
         // If subscription ended:
         if($authLevelId !== Level::LEVEL_SUPER_ADMIN){
             if(Auth::user()->active_subscription !== 'active' || Auth::user()->subscription_expired < date('Y-m-d')){
                 return redirect()->back()->with('alert' , ['type' => 'danger', 'msg' => 'Subscribe to create a user']);
             }
+            if($authLevelId === Level::LEVEL_RESELLER && $requestLevelId === Level::LEVEL_ADMIN){
+                if(!Auth::user()->can_create_admin_account){
+                    return redirect()->back()->with('alert' , ['type' => 'danger', 'msg' => 'Your have reached your limit for creating an admin account.']);
+                }
+            }
         }
+
 
         if($requestLevelId !== Level::LEVEL_CUSTOMER_SERVICE){
             $request->validate([
@@ -83,6 +90,12 @@ class AdminController extends Controller
             $user->subscription_expired = Auth::user()->subscription_expired;
         }
         // Level:
+        $user->limit_admin_account = 0;
+
+        if($authLevelId === Level::LEVEL_SUPER_ADMIN){
+            if($requestLevelId === Level::LEVEL_RESELLER)
+                $user->limit_admin_account = $maxAdminAccount;
+        }
 
         if($authLevelId >= $requestLevelId && $authLevelId !== Level::LEVEL_SUPER_ADMIN){
             return redirect()->back()->with('alert' , ['type' => 'danger', 'msg' => 'You can\'t register a user higher than yours']);
@@ -167,9 +180,10 @@ class AdminController extends Controller
             'email' => 'required|unique:users,email,'.$request->id,
 //            'limit_device' => 'required|numeric|max:10',
             'active_subscription' => 'required|',
-
+            'max_admin_account' => 'nullable|max:10',
         ]);
 
+        $maxAdminAccount = $request->max_admin_account;
         $requestLevelId = intval($request->level_id);
 
         if($request->active_subscription == 'active'){
@@ -201,6 +215,13 @@ class AdminController extends Controller
             }
         } else if($requestLevelId === Level::LEVEL_RESELLER) {
             $user->limit_device = $request->limit_device;
+        }
+
+        $user->limit_admin_account = 0;
+
+        if($authLevelId === Level::LEVEL_SUPER_ADMIN){
+            if($requestLevelId === Level::LEVEL_RESELLER)
+                $user->limit_admin_account = $maxAdminAccount;
         }
 
         $user->username = $request->username;

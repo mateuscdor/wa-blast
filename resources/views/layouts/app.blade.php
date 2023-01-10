@@ -40,6 +40,12 @@ Dilarang share atau menjual belikan source code ini tanpa izin ya bos! biar berk
             height: 35px;
             padding: 0!important;
         }
+        div.dataTables_wrapper div.dataTables_length select {
+            width: auto;
+        }
+        div.dataTables_wrapper>.row>.col-sm-12 {
+            overflow: auto;
+        }
     </style>
 
 </head>
@@ -61,6 +67,7 @@ Dilarang share atau menjual belikan source code ini tanpa izin ya bos! biar berk
         </div>
     </div>
 </div>
+@stack('footer')
 
     <!-- Javascripts -->
 <script src="{{asset('plugins/bootstrap/js/popper.min.js')}}"></script>
@@ -74,7 +81,6 @@ Dilarang share atau menjual belikan source code ini tanpa izin ya bos! biar berk
 <script src="{{asset('js/pages/blockui.js')}}"></script>
 
 @stack('scripts')
-@stack('footer')
 </body>
 
 </html>

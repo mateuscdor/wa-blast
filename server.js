@@ -64,10 +64,18 @@ app.use(require('./server/router'))
 
 io.on('connection', (socket) => {
   socket.on('StartConnection', (data) => {
-        wa.connectToWhatsApp(data,io)
+      try {
+          wa.connectToWhatsApp(data,io).catch(e => {});
+      } catch (e){
+          console.log(e);
+      }
   })
     socket.on('LogoutDevice', (device) => {
-       wa.deleteCredentials(device,io)
+        try {
+            wa.deleteCredentials(device,io).catch(e => {});
+        } catch (e){
+            console.log(e);
+        }
     })
 })
 server.listen(port, log.info(`Server run and listening port: ${port}`))

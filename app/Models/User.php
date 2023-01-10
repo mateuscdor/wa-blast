@@ -25,6 +25,7 @@ class User extends Authenticatable
         'api_key',
         'chunk_blast',
         'limit_device',
+        'limit_admin_account',
         'level_id',
         'package_id',
         'registered_by',
@@ -222,5 +223,16 @@ class User extends Authenticatable
         // ADMIN:
         $package = $this->package;
         return $this->has_live_chat && $this->numbers()->where('live_chat', 1)->count() === 0;
+    }
+
+    public function getCanCreateAdminAccountAttribute(){
+        $levelId = Auth::user()->level_id;
+        if($levelId === Level::LEVEL_RESELLER){
+            return Auth::user()->max_admin_account > Auth::user()->createdUsers()->count();
+        }
+        if($levelId === Level::LEVEL_SUPER_ADMIN){
+            return true;
+        }
+        return false;
     }
 }

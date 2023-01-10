@@ -13,7 +13,7 @@
                     <label for="package_name" class="form-label">Nama Paket</label>
                     <input type="text" name="name" id="package_name" class="form-control" value=""><br>
 
-                    <label for="package_users" class="form-label">Limit User (CS)</label><br>
+                    <label for="package_users" class="form-label">Jumlah Akun (CS)</label><br>
                     <input id="package_users" name="users" class="form-control" type="number"><br/>
 
                     <label for="package_admin_device" class="form-label">Limit Device Admin</label><br>

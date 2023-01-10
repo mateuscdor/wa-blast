@@ -27,15 +27,15 @@ class AutoreplyController extends Controller
 
     public function store(Request $request){
 
-        $cek = Autoreply::whereDevice($request->device)->whereKeyword($request->keyword)->first();
-        if($cek){
-            session()->flash('alert', [
-                'type' => 'danger',
-                'msg' => 'Keyword already exists in same number'
-            ]);
-
-            return response()->json('error', 400);
-        }
+//        $cek = Autoreply::whereDevice($request->device)->whereKeyword($request->keyword)->first();
+//        if($cek){
+//            session()->flash('alert', [
+//                'type' => 'danger',
+//                'msg' => 'Keyword already exists in same number'
+//            ]);
+//
+//            return response()->json('error', 400);
+//        }
 
         $messageType = $request->message_type;
         // create text
@@ -85,6 +85,15 @@ class AutoreplyController extends Controller
             $dataAutoReply = Autoreply::find($id);
 
             switch ($dataAutoReply->type) {
+                case 'list':
+                    return view('ajax.autoreply.listshow', [
+                        'keyword'=>$dataAutoReply->keyword,
+                        'message'=> json_decode($dataAutoReply->reply)->text,
+                        'title'=> json_decode($dataAutoReply->reply)->title,
+                        'footer'=> json_decode($dataAutoReply->reply)->footer,
+                        'buttonText' => json_decode($dataAutoReply->reply)->buttonText,
+                        'sections' => json_decode($dataAutoReply->reply)->sections,
+                    ]);
                 case 'text':
                     return view('ajax.autoreply.textshow',[
                         'keyword'=>$dataAutoReply->keyword,
@@ -96,11 +105,11 @@ class AutoreplyController extends Controller
                         'keyword'=>$dataAutoReply->keyword,
                         'caption'=> json_decode($dataAutoReply->reply)->caption,
                         'image'=> json_decode($dataAutoReply->reply)->image->url,
+                        'buttons'=> json_decode($dataAutoReply->reply)->buttons,
                     ])->render();
                     break;
                 case 'button':
                     // if exists property image in $dataAutoreply->reply
-
                     return  view('ajax.autoreply.buttonshow',[
                         'keyword'=>$dataAutoReply->keyword,
                         'message'=> json_decode($dataAutoReply->reply)->text ?? json_decode($dataAutoReply->reply)->caption,

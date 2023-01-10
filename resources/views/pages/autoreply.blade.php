@@ -6,6 +6,34 @@
 
 @push('head')
     <link href="{{asset('css/custom.css')}}" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/material-design-iconic-font/2.2.0/css/material-design-iconic-font.min.css" integrity="sha512-rRQtF4V2wtAvXsou4iUAs2kXHi3Lj9NE7xJR77DE7GHsxgY9RTWy93dzMXgDIG8ToiRTD45VsDNdTiUagOFeZA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
+        .modal { overflow: auto !important; }
+        .showReply {
+            padding-left: 0!important;
+            padding-right: 0!important;
+        }
+        .showReply .conversation-compose {
+            height: 56px;
+            padding-bottom: 8px;
+        }
+        .showReply .page {
+            width: 100% !important;
+            align-items: normal;
+        }
+        .btn_type {
+            padding: 5px 10px;
+            border: 0;
+            color: #5454ff;
+            font-weight: 600;
+            font-size: 11px !important;
+            background-color: #e5ffdc;
+            cursor: pointer;
+        }
+        .btn_type:hover {
+            background-color: #0AAEB3;
+        }
+    </style>
 @endpush
 {{-- <link href="{{asset('plugins/datatables/datatables.min.css')}}" rel="stylesheet"> --}}
 {{-- <link href="{{asset('plugins/select2/css/select2.css')}}" rel="stylesheet"> --}}
@@ -197,7 +225,7 @@
                     <h5 class="modal-title" id="exampleModalLabel">Auto Reply Preview</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body showReply">
+                <div class="modal-body showReply" id="showReply">
                 </div>
             </div>
         </div>
@@ -210,7 +238,7 @@
     {{-- <script src="{{asset('js/pages/select2.js')}}"></script> --}}
     <script src="{{asset('plugins/datatables/datatables.min.js')}}"></script>
     {{-- <script src="{{asset('plugins/select2/js/select2.full.min.js')}}"></script> --}}
-    <script src="{{asset('js/autoreply.js')}}"></script>
+    <script src="{{asset('js/autoreply.js?t='.getLastJSTime())}}"></script>
     <script>
 
         let isUsingCreatedTemplate = false;
@@ -263,5 +291,15 @@
                 }
             })
         })
+        let isModalOpen = false;
+        $('#addAutoRespond').on('show.bs.modal', function(){
+           isModalOpen = true;
+        });
+        $('#modal-spintax').on('show.bs.modal', function(){
+            $('#addAutoRespond').modal('hide');
+        });
+        $('#modal-spintax').on('hide.bs.modal', function(){
+            $('#addAutoRespond').modal('show');
+        });
     </script>
 @endpush

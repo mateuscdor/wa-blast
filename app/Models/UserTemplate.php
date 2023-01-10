@@ -62,9 +62,19 @@ class UserTemplate extends Model
                     ]);
                     return false;
                 }
+                $buttons = collect($obj->buttons ?? [])->map(function($item, $index){
+                    return [
+                        'buttonId' => $item->id,
+                        'buttonText' => [
+                            'displayText' => $item->label,
+                        ],
+                        'type' => 1,
+                    ];
+                });
                 $msg = [
                     'image' => ['url' => $obj->image],
                     'caption' => $obj->message ?? '',
+                    'buttons' => $buttons,
                 ];
                 break;
             case 'button':
@@ -82,19 +92,19 @@ class UserTemplate extends Model
                 }
 
                 $buttons = collect($obj->buttons ?? [])->map(function($item, $index){
-                    $typePurpose = $item->type === 'url' ? 'url' : ($item->type === 'phone'? 'phoneNumber': 'id');
-                    $type = $item->type === 'url' ? 'urlButton' : ($item->type === 'phone'? 'callButton': 'quickReplyButton');
-
                     return [
-                        'index' => $index + 1,
-                        $type => ['displayText' => $item->label, $typePurpose => $typePurpose === 'id'? $item->id: $item->text],
+                        'buttonId' => $item->id,
+                        'buttonText' => [
+                            'displayText' => $item->label,
+                        ],
+                        'type' => 1,
                     ];
                 });
 
                 $buttonMessage = [
                     'text' => $obj->message,
                     'footer' => $obj->footer ?? '',
-                    'templateButtons' => $buttons,
+                    'buttons' => $buttons,
                     'headerType' => 1,
                 ];
 
@@ -149,6 +159,7 @@ class UserTemplate extends Model
                     $msg = $templateMessage;
                 } catch (\Throwable $th) {
                     Log::error($th->getMessage());
+
                     session()->flash('alert', [
                         'type' => 'danger',
                         'msg' => 'ups, an error occurred!',

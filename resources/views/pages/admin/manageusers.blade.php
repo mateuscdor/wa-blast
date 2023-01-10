@@ -72,9 +72,11 @@
                                 <div class="tab-pane fade{{!$index? " show active": ''}}" id="tab_{{$levelId}}" role="tabpanel" aria-labelledby="nav_level_{{$level->id}}">
                                     @if(Auth::user()->can_create_user)
                                         <div class="d-flex justify-content-end mb-3">
-                                            <button onclick="addUser({{$level->id}}, '{{$level->name}}')" class="btn btn-primary">
-                                                Add {{$level->name}}
-                                            </button>
+                                            @if(!($levelId === \App\Models\Level::LEVEL_ADMIN && Auth::user()->level_id === \App\Models\Level::LEVEL_RESELLER && !Auth::user()->can_create_admin_account))
+                                                <button onclick="addUser({{$level->id}}, '{{$level->name}}')" class="btn btn-primary">
+                                                    Add {{$level->name}}
+                                                </button>
+                                            @endif
                                         </div>
                                     @endif
                                     <div class="row">
@@ -176,7 +178,7 @@
     </div>
     @if(\Illuminate\Support\Facades\Auth::user()->level_id === \App\Models\Level::LEVEL_SUPER_ADMIN)
         @include('.components.modals.user-modal', ['id' => 'modal_user_' . \App\Models\Level::LEVEL_SUPER_ADMIN, 'levelId' => \App\Models\Level::LEVEL_SUPER_ADMIN])
-        @include('.components.modals.user-modal', ['id' => 'modal_user_' . \App\Models\Level::LEVEL_RESELLER, 'limit' => true, 'levelId' => \App\Models\Level::LEVEL_RESELLER])
+        @include('.components.modals.user-modal', ['id' => 'modal_user_' . \App\Models\Level::LEVEL_RESELLER, 'limit' => true, 'max_admin_account' => true, 'levelId' => \App\Models\Level::LEVEL_RESELLER])
     @endif
 
     @if(\Illuminate\Support\Facades\Auth::user()->level_id <= \App\Models\Level::LEVEL_RESELLER)
@@ -210,6 +212,7 @@
             $(`#${elementId}_user_active_subscription`).val('inactive');
             $(`#${elementId}_user_subscription_expired`).val('');
             $(`#${elementId}_user_limit_device`).val('');
+            $(`#${elementId}_user_max_admin_account`).val('');
             $(`#${elementId}_user_id`).val('');
             $(`#${elementId}_user_package_id`).val('');
 
@@ -239,6 +242,7 @@
                     $(`#${elementId}_user_active_subscription`).val(data.active_subscription);
                     $(`#${elementId}_user_subscription_expired`).val(data.subscription_expired? data.subscription_expired.substring(0, 10): '');
                     $(`#${elementId}_user_id`).val(data.id);
+                    $(`#${elementId}_user_max_admin_account`).val(data.limit_admin_account);
                     $(`#${elementId}_user_package_id`).val(data.package_id);
                     $(`#${elementId}_user_limit_device`).val(data.limit_device);
                 }

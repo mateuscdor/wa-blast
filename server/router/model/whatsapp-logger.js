@@ -7,15 +7,16 @@ const WhatsappLogger = function(){
 
         socket.ev.on('connection.update', function(event){
 
-            const {connection, lastDisconnect, qr, isOnline, receivedPendingNotifications} = event;
+            const {connection, lastDisconnect, qr, isOnline, receivedPendingNotifications, isNewLogin} = event;
             let eventType = qr? 'Generated QR': ucFirst(connection? 'Connection (' + connection + ')': connection);
 
             if(!eventType){
                 if(isOnline){
                     eventType = 'Online (' + (isOnline? 'true': 'false') + ')';
-                }
-                if(receivedPendingNotifications){
+                } else if(receivedPendingNotifications){
                     eventType = 'Received Pending Notifications';
+                } else if(isNewLogin) {
+                    eventType = 'New Login';
                 }
             } else if(connection === 'close'){
                 log.error(lastDisconnect);
@@ -30,12 +31,15 @@ const WhatsappLogger = function(){
         });
 
         socket.ev.on('messaging-history.set', function(event){
-            log.info(`Event Type (${token}): Messaging History`);
+            log.info(`Event Type (${token}): Messaging History Updates... (Disabled)`);
         })
 
-        socket.ev.on('messages.upsert', function(event){
+        socket.ev.on('messages.update', function(event){
             log.info(`Event Type (${token}): Message Update`);
-            log.info('Messages: ' + event.messages?.length);
+        });
+
+        socket.ev.on('messages.upsert', function(event){
+            log.info(`Event Type (${token}): ${event.messages?.length} Messages Received`);
         });
 
     };

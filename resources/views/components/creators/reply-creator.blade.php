@@ -10,6 +10,7 @@
     </select>
 </div>
 <div>
+    @include('components.creators.spintax-creator')
     @include('components.creators.media-creator')
     @include('components.creators.body-creator')
     @include('components.creators.footer-creator')
@@ -20,13 +21,15 @@
 @push('scripts')
     <script>
 
+        const spintaxCreator = SpintaxCreator();
         const buttonCreator = TemplateButtonCreator();
         const mediaCreator = TemplateMediaCreator();
         const listCreator = TemplateListCreator();
-        const footerCreator = TemplateFooterCreator();
-        const bodyCreator = TemplateBodyCreator();
+        const footerCreator = TemplateFooterCreator(spintaxCreator);
+        const bodyCreator = TemplateBodyCreator(spintaxCreator);
 
         const currentData = {!!isset($initial)? json_encode($initial->message): "{}"!!};
+        spintaxCreator.init();
 
         $('#message_type').change(function(){
             let value = $(this).val();
@@ -43,19 +46,19 @@
                 bodyCreator.init();
                 footerCreator.destroy();
             } else if(value === 'image'){
-                buttonCreator.destroy();
+                buttonCreator.init(false);
                 mediaCreator.init();
                 listCreator.destroy();
                 bodyCreator.init('Caption');
                 footerCreator.destroy();
             } else if(value === 'button'){
-                buttonCreator.init();
+                buttonCreator.init(false);
                 mediaCreator.init();
                 listCreator.destroy();
                 bodyCreator.init();
                 footerCreator.init();
             } else if(value === 'template'){
-                buttonCreator.init();
+                buttonCreator.init(false);
                 mediaCreator.init();
                 listCreator.destroy();
                 bodyCreator.init();
@@ -67,7 +70,6 @@
                 bodyCreator.init();
                 footerCreator.init();
             }
-
         });
         const getAllValues = function(){
             let buttons = buttonCreator.getValue();

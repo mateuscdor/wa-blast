@@ -21,12 +21,11 @@ function viewReply(id) {
         type: 'GET',
         dataType: 'html',
         success: (result) => {
-
-            $('.showReply').html(result);
+            $('#showReply').html(result);
             $('#modalView').modal('show')
         },
         error: (error) => {
-            console.log(error);
+
         }
     })
     // 

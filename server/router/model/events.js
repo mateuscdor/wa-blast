@@ -55,32 +55,37 @@ const onConnectionOpen = async function ({sock, io, token, qr}) {
     qr.remove(token);
 };
 
-const onConnectionClose = function({lastDisconnect, io, sock, token, clearConnection, qr}){
+const onConnectionClose = function({lastDisconnect, io, sock, token, clearConnection, loop, qr}){
 
-    const number = getNumberFromSocket({sock, token});
-
-    if ((lastDisconnect?.error)?.output?.statusCode !== DisconnectReason.loggedOut) {
+    if (((lastDisconnect?.error)?.output?.statusCode !== DisconnectReason.loggedOut)) {
         qr.remove(token)
-        if (io != null) io.emit('message', { token: token, message: "Connecting.." })
+        if(lastDisconnect?.error?.output?.statusCode === DisconnectReason.restartRequired){
+            if (io != null) io.emit('reload-qr', { token: token, message: 'Request QR ended. reload scan to request QR again' })
+        } else {
+            if (io != null) io.emit('message', { token: token, message: "Connecting.." })
+        }
         if ((lastDisconnect.error)?.output?.payload?.message === 'QR refs attempts ended') {
             sock.get(token).ws.close()
             if (io != null) io.emit('reload-qr', { token: token, message: 'Request QR ended. reload scan to request QR again' })
         }
-    } else {
-        if(token !== number){
-            setStatus(token, 'Disconnect')
-            if (io !== null) {
-                io.emit('message', { token, message: 'Connection closed. You are logged out.' })
-            }
-            clearConnection(token)
+        if([DisconnectReason.connectionReplaced, DisconnectReason.connectionLost, DisconnectReason.connectionClosed].includes(lastDisconnect?.error?.output?.payload?.statusCode)){
+            log.info('Starting a new connection in...');
+            loop().catch(e => {
+                log.error(e);
+            });
         }
+    } else {
+        if (io !== null) {
+            io.emit('reload-qr', { token, message: 'Connection closed. You are logged out.' })
+        }
+        clearConnection(token)
     }
 }
 
 const onQRConnection = function({io, token, qrCode, qr}){
     QRCode.toDataURL(qrCode, function (err, url) {
         if (err) {
-            console.log(err);
+            console.log('QR Error', err);
             return;
         }
         qr.set(token, url);

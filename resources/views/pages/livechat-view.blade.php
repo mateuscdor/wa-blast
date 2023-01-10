@@ -8,6 +8,7 @@
         .chat_item {
             margin-top: 0.25rem;
             max-width: 500px;
+            min-width: 100px;
             padding: 8px 16px;
             border-radius: 8px;
             width: fit-content;
@@ -33,6 +34,14 @@
             border-radius: 4px;
             margin-top: 8px;
             margin-bottom: 4px;
+        }
+        .chat_image_holder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .chat_image.autoreply_image {
+            width: 250px;
         }
         .chat_autoreply {
             border-top: 1px solid rgba(0, 0, 0, 0.2);
@@ -86,7 +95,7 @@
                             @endif
                         </div>
                         <div id="chats" class="d-flex flex-column p-4" style="min-height: 400px; height: 400px; max-height: 400px; overflow-y: auto; background-color: #e7e7e7">
-                            @include('components.chat.chat-list', ['chats' => $conversation->chats])
+                            @include('components.chat.chat-list', ['chats' => $chats])
                         </div>
                         @if($device->status === \App\Models\Number::STATUS_DISCONNECTED)
                             <input value="Please connect your device" disabled="disabled" class="form-control chat_disabled">

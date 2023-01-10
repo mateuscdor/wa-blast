@@ -61,7 +61,7 @@
                                             @endisset
                                             {{-- button start --}}
                                             <div class="row">
-                                                <div class="col-md-12 mt-5">
+                                                <div class="col-md-12 mt-2">
                                                     <button id="startBlast" type="submit" class="btn btn-success">
                                                         @isset($template)
                                                             Update

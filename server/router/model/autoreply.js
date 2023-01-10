@@ -9,8 +9,8 @@ const fs = require('fs');
 const path = require("path");
 const sizeOf = require('image-size');
 const {dbUpdateQuery} = require("../../database");
-const sharp = require("sharp");
 const request = require("request");
+const gm = require('gm').subClass({ imageMagick: true });
 
 //const { startCon } = require('./WaConnection');
 async function removeForbiddenCharacters(input) {
@@ -34,31 +34,30 @@ const autoReply = async (msg, sock) => {
         const senderName = msg?.pushName || '';
         const from = msg.key.remoteJid.split('@')[0];
         let bufferImage;
-        if(msg && msg.image){
-            let data = await (new Promise((resolve, reject) => {
-                request.get(msg.image?.url, function (error, response, body) {
-                    if (!error && response.statusCode === 200) {
-                        let data = Buffer.from(body,'base64');
-                        resolve(data);
-                    } else {
-                        reject("Image Not found");
-                    }
-                });
-            }))
-            msg.jpegThumbnail = Buffer.from(await sharp(data).jpeg({
-                quality: 30
-            }).resize({ width: 100 }).toBuffer()).toString('base64');
-        }
+        // if(msg && msg.image){
+        //     let data = await (new Promise((resolve, reject) => {
+        //         request.get(msg.image?.url, function (error, response, body) {
+        //             if (!error && response.statusCode === 200) {
+        //                 let data = Buffer.from(body,'base64');
+        //                 resolve(data);
+        //             } else {
+        //                 reject("Image Not found");
+        //             }
+        //         });
+        //     }))
+        //     msg.jpegThumbnail = Buffer.from(await sharp(data).jpeg({
+        //         quality: 30
+        //     }).resize({ width: 100 }).toBuffer()).toString('base64');
+        // }
 
         if (msg.key.fromMe === true) return;
-        let reply;
-
+        let replies;
         let result;
 
-        const equal = await dbQuery(`SELECT * FROM autoreplies WHERE keyword = "${command}" AND type_keyword = 'Equal' AND device = ${sock.user.id.split(':')[0]} LIMIT 1`);
+        const equal = await dbQuery(`SELECT * FROM autoreplies WHERE keyword = "${command}" AND type_keyword = 'Equal' AND device = ${sock.user.id.split(':')[0]}`);
         if (equal.length === 0) {
             // select locate
-            result = await dbQuery(`SELECT * FROM autoreplies WHERE LOCATE(keyword, "${command}") > 0 AND type_keyword = 'Contain' AND device = ${sock.user.id.split(':')[0]} LIMIT 1`);
+            result = await dbQuery(`SELECT * FROM autoreplies WHERE LOCATE(keyword, "${command}") > 0 AND type_keyword = 'Contain' AND device = ${sock.user.id.split(':')[0]}`);
         } else {
             result = equal;
         }
@@ -89,55 +88,70 @@ const autoReply = async (msg, sock) => {
             if (url === undefined || url === null) return;
             const r = await sendWebhook({ command: d, bufferImage, from, url });
             if (r === false) return;
-            reply = JSON.stringify(r);
+            replies = [JSON.stringify(r)];
         } else {
-
-            let replyorno = result[0].reply_when === 'All' ? true : result[0].reply_when === 'Group' && msg.key.remoteJid.includes('@g.us') ? true : result[0].reply_when === 'Personal' && !msg.key.remoteJid.includes('@g.us');
-
-            if (replyorno === false) return;
-          reply = result[0].reply;
-          //  reply = process.env.TYPE_SERVER === 'hosting' ? result[0].reply : JSON.stringify(result[0].reply);
-
+            replies = result.filter(res => {
+                return res.reply_when === 'All' ? true : res.reply_when === 'Group' && msg.key.remoteJid.includes('@g.us') ? true : res.reply_when === 'Personal' && !msg.key.remoteJid.includes('@g.us');
+            }).map(r => {
+                return r.reply;
+            })
         }
         // replace if exists {name} with sender name in reply
-        let date = new Date();
-        let hour = date.getHours();
-        let hello = "Selamat Malam";
-        if(hour >= 7 && hour < 12){
-            hello = "Selamat Pagi";
-        } else if(hour >= 12 && hour < 15){
-            hello = "Selamat Siang";
-        } else if(hour <= 18){
-            hello = "Selamat Sore";
+        for(let reply of replies){
+            reply = JSON.parse(
+                (()=>{
+                    let replaced = JSON.stringify(reply)
+                        .replace(/\{\{nama\}\}/g, contact.name)
+                        .replace(/\{\{nomor\}\}/g, contact.number)
+                        .replace(/\{\{var\1([0-9]+)\}\}/g, function(match){
+                            let id = match.replace(/\{\{var(.*)\}\}/, '$1');
+                            try {
+                                return JSON.parse(contact.raw_values)[parseInt(id) + 1] ?? '';
+                            } catch (e){
+                                return '';
+                            }
+                        })
+
+                    let matches = replaced.match(/(\{\{([\w\s]*([|][\w\s]*)*)\}\})/gi) ?? [];
+
+                    matches.forEach(item => {
+                        let str = item.replace(/(\{\{([\w\s]*([|][\w\s]*)*)\}\})/gi, '$2');
+                        let split = str.split('\|').filter(s => !!s);
+                        let replacedItem = split[Math.floor(Math.random() * split.length) % split.length] ?? '';
+                        replaced = replaced.replace(item, replacedItem);
+                    })
+
+                    return replaced;
+                })()
+            )
+
+            if(typeof reply === 'string'){
+                reply = JSON.parse(reply);
+            }
+            if(reply.buttons && !reply.buttons.length){
+                delete reply.buttons;
+            }
+
+            let message = await sock.sendMessage(msg.key.remoteJid, reply).catch(e => console.log(e));
+
+            let timestamp = parseInt(message.messageTimestamp) + 2;
+
+            const me = sock.user.id.split(':')[0];
+
+            setTimeout(async () => {
+                await generateChatQuery({
+                    me,
+                    from,
+                    senderName,
+                    messageId: message.key.id,
+                    senderType: "AUTO_REPLY",
+                    status: "PENDING",
+                    item: reply,
+                    timestamp,
+                });
+                await dbQuery(`INSERT INTO autoreply_messages (message_id) VALUES ("${message.key.id}")`)
+            }, 3000);
         }
-        reply = JSON.parse(
-            JSON.stringify(reply)
-                .replace(/{nama}/g, contact.name)
-                .replace(/{halo}/g, hello)
-                .replace(/\{var\1([0-9]+)\}/g, function(match){
-                    let id = match.replace(/\{var(.*)\}/, '$1');
-                    return JSON.parse(contact.raw_values)[parseInt(id) + 1] ?? '';
-                })
-        )
-        let message = await sock.sendMessage(msg.key.remoteJid, reply);
-
-        let timestamp = parseInt(message.messageTimestamp) + 2;
-
-        const me = sock.user.id.split(':')[0];
-
-        await generateChatQuery({
-            me,
-            from,
-            senderName,
-            messageId: message.key.id,
-            senderType: "AUTO_REPLY",
-            status: "PENDING",
-            text: reply.text,
-            image: null,
-            timestamp,
-        });
-        await dbQuery(`INSERT INTO autoreply_messages (message_id) values ("${message.key.id}")`);
-        return message.key.id;
 
         //return;
 
@@ -217,8 +231,14 @@ const saveLiveChat = async function(msg, sock){
     }
 }
 
-const generateChatQuery = async function({senderName, from, me, senderType, text, image, timestamp, messageId}){
+const generateChatQuery = async function({senderName, from, me, senderType, text, item, image, timestamp, messageId, status}){
 
+    if(item){
+        text = item.text ?? item.caption ?? '';
+        image = item.image ?? null;
+    } else {
+        item = {};
+    }
     let messageDateTime = (new Date(timestamp * 1000)).toISOString().replace('T', ' ').replace('\.000Z', '');
 
     const thisNumber = (await dbQuery(`SELECT * FROM numbers WHERE body = "${me}" AND live_chat = 1 LIMIT 1`))[0] ?? null;
@@ -227,22 +247,31 @@ const generateChatQuery = async function({senderName, from, me, senderType, text
     }
     let numberId = thisNumber.id;
 
-    let currentConversation = await dbQuery(`SELECT * FROM conversations WHERE target_number = "${from}" AND number_id = "${numberId}" LIMIT 1`);
+    let currentConversation = await dbQuery(`SELECT * FROM conversations WHERE target_number = "${from}" AND device_number = "${me}" LIMIT 1`);
     if(!currentConversation.length){
         await dbQuery(`INSERT INTO conversations (target_number, number_id, target_name, device_number) VALUES ("${from}", "${numberId}", "${senderName}", "${me}")`);
-        currentConversation = await dbQuery(`SELECT * FROM conversations WHERE target_number = "${from}" AND number_id = "${numberId}" LIMIT 1`);
+        currentConversation = await dbQuery(`SELECT * FROM conversations WHERE target_number = "${from}" AND device_number = "${me}" LIMIT 1`);
     }
     let exists = await dbQuery(`SELECT id FROM chats WHERE message_id = "${messageId}"`);
     if(exists.length){
         if(senderType === "AUTO_REPLY"){
-            await dbUpdateQuery(`UPDATE chats SET read_status = "DELIVERED", number_type = "AUTO_REPLY" WHERE message_id = "${messageId}"`)
+            await dbUpdateQuery(`UPDATE chats SET read_status = "DELIVERED", number_type = "AUTO_REPLY", message = '${JSON.stringify({
+                text,
+                ...(image? {image: image}: {}),
+                ...item
+            })}' WHERE message_id = "${messageId}"`)
         } else {
-            await dbUpdateQuery(`UPDATE chats SET read_status = "DELIVERED" WHERE message_id = "${messageId}"`)
+            await dbUpdateQuery(`UPDATE chats SET read_status = "DELIVERED", message = '${JSON.stringify({
+                text,
+                ...(image? {image: image}: {}),
+                ...item
+            })}' WHERE message_id = "${messageId}"`)
         }
     } else {
         await dbQuery(`INSERT INTO chats (conversation_id, number_type, read_status, message, sent_at, message_id) VALUES ("${currentConversation[0].id}", "${senderType}", "UNREAD", '${JSON.stringify({
             text,
             ...(image? {image: image}: {}),
+            ...item
         })}', "${messageDateTime}", "${messageId}")`)
     }
 }

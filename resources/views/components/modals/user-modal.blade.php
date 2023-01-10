@@ -1,4 +1,4 @@
-<div class="modal fade" id="{{$id ?? 'user_modal'}}" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+<div class="modal fade" id="{{$id ?? 'user_modal'}}" tabindex="-1"  aria-hidden="true">
     <div class="modal-dialog">
         <form action="{{$action ?? ''}}" method="POST" enctype="multipart/form-data" id="form_{{$id ?? 'user'}}">
             <div class="modal-content">
@@ -38,6 +38,11 @@
                             U: Users, UD: User devices, AD: Admin devices
                         </small><br>
                     @endisset
+
+                    @if($max_admin_account ?? false)
+                        <label for="{{$id ?? 'user_modal'}}_user_max_admin_account" class="form-label">Limit Akun Admin</label><br>
+                        <input id="{{$id ?? 'user_modal'}}_user_max_admin_account" name="max_admin_account" class="form-control"><br/>
+                    @endif
 
                     @if($limit ?? false)
                         <label for="{{$id ?? 'user_modal'}}_user_limit_device" class="form-label">Limit Device</label><br>

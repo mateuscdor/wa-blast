@@ -68,8 +68,28 @@
                                     Conversations
                                 </h5>
                                 <div class="d-flex gap-1">
-                                    <button class="btn btn-warning btn-sm d-none" data-bs-toggle="modal" data-bs-target="#modal-group" id="change_group">
-                                        Change Group
+
+                                    <div class="dropdown d-none" id="dropdown_actions">
+                                        <a class="btn btn-warning btn-sm dropdown-toggle" href="#" role="button" id="dropdownMenuLink" data-bs-toggle="dropdown" aria-expanded="false">
+                                            Actions
+                                        </a>
+
+                                        <ul class="dropdown-menu" aria-labelledby="dropdownMenuLink">
+                                            <li>
+                                                <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#modal-contacts" id="add_to_contacts">
+                                                    Add to Contacts
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#modal-group" id="change_group">
+                                                    Change Group
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
+
+                                    <button id="btn_export" class="btn btn-primary btn-sm h-auto ml-auto" type="button">
+                                        Export
                                     </button>
                                     <button id="btn_create_label" class="btn btn-primary btn-sm h-auto ml-auto" type="button">
                                         Create Group
@@ -78,33 +98,39 @@
                             </div>
                             <ul class="nav nav-tabs mb-3" id="myTab" role="tablist">
                                 @foreach($groups as $index => $group)
-                                    <li class="nav-item{{!$index? " active": ''}}" role="presentation">
-                                        <button class="nav-link{{!$index? " active": ''}}" id="nav_group_{{$group->id}}" data-bs-toggle="tab" data-bs-target="#tab_{{$group->id}}" type="button" role="tab" aria-controls="hoaccountme" aria-selected="true">
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link" id="nav_group_{{$group->id}}" data-bs-toggle="tab" data-bs-target="#tab_{{$group->id}}" type="button" role="tab" aria-controls="hoaccountme" aria-selected="true">
                                             {{$group->label}}
                                             <i class="material-icons" data-type="btn_edit_label" data-group-id="{{$group->id}}" data-group-label="{{$group->label}}" style="font-size: 16px">edit</i>
                                         </button>
                                     </li>
                                 @endforeach
-                                <li class="nav-item{{count($groups)? '': ' active'}}" role="presentation">
-                                    <button class="nav-link{{count($groups)? '': ' active'}}" id="nav_group_default" data-bs-toggle="tab" data-bs-target="#tab_default" type="button" role="tab" aria-controls="hoaccountme" aria-selected="true">
+                                <li class="nav-item active" role="presentation">
+                                    <button class="nav-link active" id="nav_group_default" data-bs-toggle="tab" data-bs-target="#tab_default" type="button" role="tab" aria-controls="hoaccountme" aria-selected="true">
                                         Unlabeled chats
                                     </button>
                                 </li>
                             </ul>
                             <div class="tab-content" id="myTabContent">
                                 @foreach($groups as $index => $group)
-                                    <div class="tab-pane fade{{!$index? " show active": ''}}" id="tab_{{$group->id}}" role="tabpanel" aria-labelledby="nav_group_{{$group->id}}">
+                                    <div class="tab-pane fade" id="tab_{{$group->id}}" role="tabpanel" aria-labelledby="nav_group_{{$group->id}}">
                                         <table class="display" style="width: 100%">
                                             <thead>
                                             <tr>
                                                 <th>
+                                                    Defined Label
+                                                </th>
+                                                <th>
+                                                    Contact Name
+                                                </th>
+                                                <th>
                                                     Number
                                                 </th>
                                                 <th>
-                                                    Label
+                                                    Unread messages
                                                 </th>
                                                 <th>
-                                                    Unread messages
+                                                    Time Range
                                                 </th>
                                                 <th>
                                                     Action
@@ -115,9 +141,6 @@
                                             @foreach(($conversations[$group->id] ?? []) as $conversation)
                                                 <tr data-id="{{$conversation->id}}" data-group-id="{{$group->id}}">
                                                     <td>
-                                                        {{$conversation->target_number}}
-                                                    </td>
-                                                    <td>
                                                         <div class="d-flex gap-2">
                                                             {{$conversation->defined_name ?: "-"}}
                                                             <button data-before="{{$conversation->defined_name}}" data-edit-id="{{$conversation->id}}" data-toggle="edit" class="btn btn-warning btn-sm">
@@ -126,7 +149,26 @@
                                                         </div>
                                                     </td>
                                                     <td>
+                                                        <div class="d-flex gap-2">
+                                                            {{$conversation->target_name ?: "-"}}
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        {{$conversation->target_number}}
+                                                    </td>
+                                                    <td>
                                                         {{$conversation->unread_chats_count}}
+                                                    </td>
+                                                    <td
+                                                            data-from-time="{{$conversation->oldest_time}}"
+                                                            data-to-time="{{$conversation->latest_time}}"
+                                                    >
+                                                    <span data-from-id="{{$conversation->id}}" class="badge badge-warning">
+                                                        {{\Carbon\Carbon::make($conversation->oldest_time)}}
+                                                    </span>
+                                                        <span data-to-id="{{$conversation->id}}" class="badge badge-primary">
+                                                        {{\Carbon\Carbon::make($conversation->latest_time)}}
+                                                    </span>
                                                     </td>
                                                     <td>
                                                         <div class="d-flex gap-2">
@@ -149,18 +191,24 @@
                                         </table>
                                     </div>
                                 @endforeach
-                                <div class="tab-pane fade{{count($groups)? '': ' show active'}}" id="tab_default" role="tabpanel" aria-labelledby="nav_group_default">
+                                <div class="tab-pane fade show active" id="tab_default" role="tabpanel" aria-labelledby="nav_group_default">
                                     <table class="display" style="width: 100%">
                                         <thead>
                                         <tr>
                                             <th>
+                                                Defined Label
+                                            </th>
+                                            <th>
+                                                Contact Name
+                                            </th>
+                                            <th>
                                                 Number
                                             </th>
                                             <th>
-                                                Label
+                                                Unread messages
                                             </th>
                                             <th>
-                                                Unread messages
+                                                Time Range
                                             </th>
                                             <th>
                                                 Action
@@ -171,9 +219,6 @@
                                         @foreach($conversations[''] ?? [] as $conversation)
                                             <tr data-id="{{$conversation->id}}" data-group-id="">
                                                 <td>
-                                                    {{$conversation->target_number}}
-                                                </td>
-                                                <td>
                                                     <div class="d-flex gap-2">
                                                         {{$conversation->defined_name ?: "-"}}
                                                         <button data-before="{{$conversation->defined_name}}" data-edit-id="{{$conversation->id}}" data-toggle="edit" class="btn btn-warning btn-sm">
@@ -182,7 +227,26 @@
                                                     </div>
                                                 </td>
                                                 <td>
+                                                    <div class="d-flex gap-2">
+                                                        {{$conversation->target_name ?: "-"}}
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    {{$conversation->target_number}}
+                                                </td>
+                                                <td>
                                                     {{$conversation->unread_chats_count}}
+                                                </td>
+                                                <td
+                                                        data-from-time="{{$conversation->oldest_time}}"
+                                                        data-to-time="{{$conversation->latest_time}}"
+                                                >
+                                                    <span data-from-id="{{$conversation->id}}" class="badge badge-warning">
+                                                        {{\Carbon\Carbon::make($conversation->oldest_time)}}
+                                                    </span>
+                                                    <span data-to-id="{{$conversation->id}}" class="badge badge-primary">
+                                                        {{\Carbon\Carbon::make($conversation->latest_time)}}
+                                                    </span>
                                                 </td>
                                                 <td>
                                                     <div class="d-flex gap-2">
@@ -336,13 +400,43 @@
             </div>
         </div>
     </div>
+    <div class="modal fade" id="modal-contacts" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="group_modal_title">
+                        Add to Contacts (Phone Book)
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form method="POST" id="label_form" action="{{route('livechatToBook')}}">
+                    <div class="modal-body">
+                        @csrf
+                        <div id="selected_conversations_2">
+                        </div>
+                        <label for="books" class="form-label mt-2">Phone Book</label>
+                        <select id="books" name="book_id" class="form-control" required>
+                            <option value="">Select a Phone Book</option>
+                            @foreach($tags as $book)
+                                <option value="{{$book->id}}">{{$book->name}}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" id="button_submit_contacts" name="submit" class="btn btn-primary">Submit</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 
     <div class="modal fade" id="modal-label" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="group_modal_title">
-                        Change Label
+                        Change Contact Name
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
@@ -351,7 +445,7 @@
                         @csrf
                         <div id="selected_conversations">
                         </div>
-                        <label for="defined_name" class="form-label mt-2">New Label</label>
+                        <label for="defined_name" class="form-label mt-2">New Contact Name</label>
                         <input class="form-control" id="defined_name" name="defined_name" value="">
                         <input name="id" id="defined_id" type="hidden">
                     </div>
@@ -401,7 +495,11 @@
     <script>
         let selected = {};
         let selectedGroup = '{{(isset($groups[0])? $groups[0]->id: '')}}';
-        $('table.display').DataTable();
+        $(document).ready(function(){
+            let table = $('table.display').DataTable({
+            });
+            table.redraw();
+        });
         $('.nav-link[id^="nav_group"]').click(function(){
             let id = $(this).attr('id').replace('nav_group_', '');
             if(id === 'default'){
@@ -411,9 +509,9 @@
             }
 
             if(!selected[selectedGroup]?.length){
-                $('#change_group').addClass('d-none');
+                $('#dropdown_actions').addClass('d-none');
             } else {
-                $('#change_group').removeClass('d-none');
+                $('#dropdown_actions').removeClass('d-none');
             }
         });
         $('table tbody').on('click', 'tr[data-id]', function () {
@@ -432,22 +530,61 @@
             }
 
             if(selected[groupId]?.length){
-                $('#change_group').removeClass('d-none');
+                $('#dropdown_actions').removeClass('d-none');
             } else {
-                $('#change_group').addClass('d-none');
+                $('#dropdown_actions').addClass('d-none');
             }
 
             $(this).toggleClass('selected');
         } );
         $('#change_group').click(function(){
-           let selections = selected[selectedGroup];
+            let selections = selected[selectedGroup];
             if(selections?.length){
-               $('#selected_conversations').html('');
-               for(let index in selections){
-                   let id = selections[index];
-                   $('#selected_conversations').append($(`<input name="id[${index}]" value="${id}" type="hidden">'}`))
+                $('#selected_conversations').html('');
+                for(let index in selections){
+                    let id = selections[index];
+                    $('#selected_conversations').append($(`<input name="id[${index}]" value="${id}" type="hidden">'}`))
+                }
+            }
+        });
+        $('#add_to_contacts').click(function(){
+            let selections = selected[selectedGroup];
+            if(selections?.length){
+                $('#selected_conversations_2').html('');
+                for(let index in selections){
+                    let id = selections[index];
+                    $('#selected_conversations_2').append($(`<input name="id[${index}]" value="${id}" type="hidden">'}`))
+                }
+            }
+        });
+    </script>
+    <script>
+        $(document).ready(function(){
+           $('[data-from-time][data-to-time]').each(function(){
+               let fromId = $(this).find('[data-from-id]');
+               let toId = $(this).find('[data-to-id]');
+               let fromTime = $(this).data('fromTime');
+               let toTime = $(this).data('toTime');
+               let dater = function(date){
+                   date = new Date(date);
+                   if(isNaN(date)){
+                       return '-';
+                   }
+                   let timestamp = date.getTime();
+                   timestamp -= date.getTimezoneOffset() * 60000;
+                   date = new Date(timestamp);
+                   let hours = date.getHours().toString().padStart(2, '0');
+                   let minutes = date.getMinutes().toString().padStart(2, '0');
+                   let seconds = date.getSeconds().toString().padStart(2, '0');
+                   let months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dec'];
+                   let month = months[date.getMonth();
+                   let year = date.getFullYear().toString();
+                   let day = date.getDate().toString().padStart(2, '0');
+                   return [day, month, year, [hours, minutes, seconds].join(':')].join(' ');
                }
-           }
+               fromId.text(dater(fromTime));
+               toId.text(dater(toTime));
+           });
         });
     </script>
     {{--    <script src="{{asset('js/pages/datatables.js?t=' . getLastJSTime())}}"></script>--}}

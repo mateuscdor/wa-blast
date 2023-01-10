@@ -1,7 +1,18 @@
 <div class="chat_item chat_{{strtolower($chat->number_type)}}" data-chat-id="{{$chat->message_id}}">
+    @if($chat->number_type === 'RECEIVER' && $conversation->defined_name)
+        <p class="mb-0">
+            {{$conversation->defined_name}}
+        </p>
+        <div class="divider my-1">
+        </div>
+    @endif
     @isset($chat->message['image'])
-        <a target="_blank" rel="noopener noreferrer" href="{{$chat->message['image']}}">
-            <img src="{{$chat->message['image']}}" class="chat_image">
+        @php
+            $image = $chat->message['image'];
+            $image = $image['url'] ?? $image;
+        @endphp
+        <a class="chat_image_holder" target="_blank" rel="noopener noreferrer" href="{{$image}}">
+            <img src="{{$image}}" class="chat_image {{$chat->number_type === 'SENDER'? 'autoreply_image': ''}}">
         </a>
     @endisset
     @isset($chat->message['text'])
@@ -11,10 +22,10 @@
     @endisset
     @if($chat->is_autoreply)
         <div class="chat_autoreply">
-            <small>This is an auto reply generated message</small>
+            <small>This is an auto reply generated message{{isset($chat->message['sections']) ? ' (Type: List)': ''}}</small>
         </div>
     @endif
-    <div class="d-flex gap-2">
+    <div class="d-flex gap-2 justify-content-between">
         @php
         $sentAt = $chat->sent_at ?: $chat->updated_at;
         @endphp

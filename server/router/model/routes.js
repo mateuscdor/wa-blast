@@ -4,6 +4,7 @@ const wa = require('./whatsapp')
 const lib = require('../../lib')
 const { dbQuery, dbUpdateQuery, toQueryTimestamp} = require('../../database')
 const { asyncForEach, formatReceipt } = require('../helper')
+const {WAMessageStatus} = require("@adiwajshing/baileys");
 const createInstance = async (req, res) => {
 
     const { token } = req.body
@@ -165,10 +166,7 @@ const blast = async (req, res) => {
         console.error(e);
     }
 
-    return res.send({ status: true, success: successNumber, failed: failedNumber })
-
-
-
+    return res.send({ status: true, success: successNumber, failed: failedNumber });
 }
 
 
@@ -196,9 +194,19 @@ const direct = async function (req, res) {
                 return;
             }
             let messageId = messageItem.key.id;
-            let timestamp =  parseInt(messageItem.messageTimestamp);
+            let timestamp = parseInt(messageItem.messageTimestamp);
+            let status = {
+                [WAMessageStatus.PENDING]: 'PENDING',
+                [WAMessageStatus.DELIVERY_ACK]: 'DELIVERED',
+                [WAMessageStatus.ERROR]: 'ERROR',
+                [WAMessageStatus.READ]: 'READ',
+            }[messageItem.key.status] ?? 'PENDING';
 
-            dbUpdateQuery(`UPDATE chats SET message_id = "${messageId}", read_status = "DELIVERED", sent_at = "${toQueryTimestamp(timestamp * 1000)}" WHERE id = "${chatId}" && message_id IS NULL`);
+            dbUpdateQuery(`UPDATE chats SET message_id = "${messageId}", read_status = "${status}", sent_at = "${toQueryTimestamp(timestamp * 1000)}" WHERE id = "${chatId}" && message_id IS NULL`).then(r => {
+
+            }).catch(e=>{
+                console.log(e);
+            });
         }).catch(e => {
             console.log(e);
         });

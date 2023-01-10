@@ -80,32 +80,6 @@
                                     </form>
                                 </div>
                             </div>
-                            {{--                                <table id="datatable1" class="display" style="width:100%">--}}
-                            {{--                                    <thead>--}}
-                            {{--                                    <tr>--}}
-                            {{--                                        <th>Hak Akses</th>--}}
-                            {{--                                        <th>Status</th>--}}
-                            {{--                                        <th>Action</th>--}}
-                            {{--                                        --}}{{-- <th class="d-flex justify-content-center">Action</th> --}}
-                            {{--                                    </tr>--}}
-                            {{--                                    </thead>--}}
-                            {{--                                    <tbody>--}}
-
-                            {{--                                    @foreach($modules as $module)--}}
-                            {{--                                        <tr>--}}
-                            {{--                                            <td>--}}
-                            {{--                                                {{$module->label}}--}}
-                            {{--                                            </td>--}}
-                            {{--                                            <td>--}}
-
-                            {{--                                            </td>--}}
-                            {{--                                        </tr>--}}
-
-                            {{--                                    @endforeach--}}
-
-
-                            {{--                                    <tfoot></tfoot>--}}
-                            {{--                                </table>--}}
                         </div>
                     </div>
                 </div>

@@ -40,6 +40,8 @@ class LiveChatController extends Controller
             });
         })->get();
 
+        $tags = Auth::user()->tags;
+
         return view('pages.livechat-lists',[
             'conversations' => Conversation::withCount('unreadChats')->whereHas('number', function($q){
                 $q->whereHas('user', function($q){
@@ -47,9 +49,10 @@ class LiveChatController extends Controller
                         $q->where('id', Auth::user()->id);
                     });
                 });
-            })->get()->groupBy('group_id'),
+            })->get()->sortByDesc('latest_time')->groupBy('group_id'),
             'groups' => $groups,
-            'device' => $device
+            'device' => $device,
+            'tags' => $tags,
         ]);
     }
 
@@ -86,8 +89,21 @@ class LiveChatController extends Controller
             ]);
         }
 
+        $chats = $conversation->chats()->get()->groupBy('message_id')->map(function($items){
+            return collect($items)->filter(function($item){
+                if(isset($item->message['text'])){
+                    if(count(array_values($item->message)) === 1 && $item->message['text'] === ''){
+                        return false;
+                    }
+                }
+                return true;
+            })->first();
+        })->filter(function($item){return !!$item;})->values();
+
+
         return view('pages.livechat-view', [
             'conversation' => $conversation,
+            'chats' => $chats,
             'device' => $conversation->number()->first(),
         ]);
 
@@ -108,11 +124,29 @@ class LiveChatController extends Controller
                     ->where('sent_at', '>=', $lastMessageChat->sent_at)
                     ->where('id', '!=', $lastMessageChat->id)
                     ->whereIn('read_status', ['UNREAD', 'DELIVERED'])
-                    ->get();
+                    ->get()
+                    ->groupBy('message_id')->map(function($items){
+                        return collect($items)->filter(function($item){
+                            if(isset($item->message['text'])){
+                                if(count(array_values($item->message)) === 1 && $item->message['text'] === ''){
+                                    return false;
+                                }
+                            }
+                            return true;
+                        })->first();
+                    })->filter(function($item){return !!$item;})->values();
             } else {
-                $chats = $conversation->chats()->where('read_status', 'UNREAD');
+                $chats = $conversation->chats()->where('read_status', 'UNREAD')->get()->groupBy('message_id')->map(function($items){
+                    return collect($items)->filter(function($item){
+                        if(isset($item->message['text'])){
+                            if(count(array_values($item->message)) === 1 && $item->message['text'] === ''){
+                                return false;
+                            }
+                        }
+                        return true;
+                    })->first();
+                })->filter(function($item){return !!$item;})->values();
             }
-
 
             if($conversation->can_send_message){
                 $conversation->chats()->where([
@@ -124,7 +158,11 @@ class LiveChatController extends Controller
 
             return response()->json([
                 'view' => (String) view('components.chat.chat-list', [
-                    'chats' => $chats
+                    'chats' => $chats->map(function($chat){
+                        $chat->is_autoreply = $chat->is_autoreply;
+                        return $chat;
+                    }),
+                    'conversation' => $conversation,
                 ])
             ]);
         }
@@ -164,7 +202,7 @@ class LiveChatController extends Controller
             $conversation->save();
             $chat = new Chat([
                 'conversation_id' => $conversation->id,
-                'read_status' => 'PENDING',
+                'read_status' => 'WAITING',
                 'number_type' => 'SENDER',
                 'user_id' => $user->id,
                 'message' => $message,

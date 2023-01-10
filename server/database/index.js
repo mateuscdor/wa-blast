@@ -25,9 +25,9 @@ const setStatus = (device, status) => {
 }
 
 function dbQuery(query) {
-    return new Promise(data => {
+    return new Promise((data, reject) => {
         db.query(query, (err, res) => {
-            if (err) throw err;
+            if (err) reject(err);
             try {
                 data(res);
             } catch (error) {

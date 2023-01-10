@@ -44,7 +44,7 @@ function hasLiveChatAccess(){
     return ($package && $package->live_chat);
 }
 function getLastJSTime(){
-    return \Illuminate\Support\Str::random();
+    return '2342353';
 }
 
 function getSystemSettings($name, $default = ''){

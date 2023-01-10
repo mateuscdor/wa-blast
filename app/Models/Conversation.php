@@ -32,12 +32,21 @@ class Conversation extends Model
     }
 
     public function chats(){
-        return $this->hasMany(Chat::class)->with(['autoreplyMessage', 'user'])->orderBy('sent_at');
+        return $this->hasMany(Chat::class)->distinct('message_id')->with(['autoreplyMessage', 'user'])->orderBy('sent_at');
     }
     public function unreadChats(){
         return $this->hasMany(Chat::class)->where('read_status', "UNREAD");
     }
 
+    public function getLatestTimeAttribute(){
+        $item = $this->chats()->latest('sent_at')->first();
+        return $item ? $item->sent_at: null;
+    }
+
+    public function getOldestTimeAttribute(){
+        $item = $this->chats()->oldest('sent_at')->first();
+        return $item ? $item->sent_at: null;
+    }
 
     public function getCanSendMessageAttribute()
     {
