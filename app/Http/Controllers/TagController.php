@@ -98,6 +98,29 @@ class TagController extends Controller
         }
     }
 
+    public function deleteSelections(Request $request){
+        $request->validate([
+            'id' => 'required|array',
+            'id.*' => 'exists:tags,id',
+        ]);
+
+        $userHasAccess = !Tag::with('user')->whereIn('id', $request->id)->where('user_id', '!=', Auth::id())->count();
+        if(!$userHasAccess){
+            return redirect()->back()->with('alert', [
+               'type' => 'danger',
+               'msg' => 'You don\'t have access to delete a tag or many tags of the selected items',
+            ]);
+        }
+        Tag::with('contacts')->whereIn('id', $request->id)->each(function($item){
+           $item->contacts()->delete();
+           $item->delete();
+        });
+        return redirect()->back()->with('alert', [
+            'type' => 'danger',
+            'msg' => 'Selected Tags has been deleted',
+        ]);
+    }
+
     public function livechatImport(Request $request){
         $request->validate([
             'book_id' => 'required|exists:tags,id',

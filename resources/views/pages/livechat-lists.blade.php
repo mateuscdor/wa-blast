@@ -51,7 +51,7 @@
                                     Scan
                                 </a>
                             @else
-                                <form action="{{route('disconnectDevice', $device->body)}}">
+                                <form method="POST" action="{{route('disconnectDevice', $device->body)}}">
                                     @csrf
                                     <button class="btn btn-danger" type="submit">
                                         Disconnect
@@ -436,7 +436,7 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="group_modal_title">
-                        Change Contact Name
+                        Change Defined Label
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
@@ -445,7 +445,7 @@
                         @csrf
                         <div id="selected_conversations">
                         </div>
-                        <label for="defined_name" class="form-label mt-2">New Contact Name</label>
+                        <label for="defined_name" class="form-label mt-2">New Label</label>
                         <input class="form-control" id="defined_name" name="defined_name" value="">
                         <input name="id" id="defined_id" type="hidden">
                     </div>
@@ -496,9 +496,7 @@
         let selected = {};
         let selectedGroup = '{{(isset($groups[0])? $groups[0]->id: '')}}';
         $(document).ready(function(){
-            let table = $('table.display').DataTable({
-            });
-            table.redraw();
+            let table = $('table.display').DataTable();
         });
         $('.nav-link[id^="nav_group"]').click(function(){
             let id = $(this).attr('id').replace('nav_group_', '');
@@ -536,7 +534,7 @@
             }
 
             $(this).toggleClass('selected');
-        } );
+        });
         $('#change_group').click(function(){
             let selections = selected[selectedGroup];
             if(selections?.length){

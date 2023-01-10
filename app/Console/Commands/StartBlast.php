@@ -74,7 +74,7 @@ class StartBlast extends Command
                         ->first()
                         ->status;
                     
-                    if ($statusCampaign == 'paused') {
+                    if ($statusCampaign == 'paused' || $statusCampaign === 'finish') {
                         return;
                     }
                     $data = [];
@@ -115,27 +115,36 @@ class StartBlast extends Command
                          
                                 
                              $result = json_decode($proc->body());
+                             Log::error($proc->body());
+
+
+                             if(!isset($result->success)){
+                                 sleep(1);
+                                 Log::error($result);
+                                  checkBlastPending($campaign, $isCampaignNotPaused);
+                                 return;
+                             }
+
                              $successNumber = $result->success;
                              $failedNumber = $result->failed;
                              Log::info($proc);
-                             Log::info($data);
                               Blast::whereIn('receiver', $successNumber)->whereStatus('pending')->update(['status' => 'success']);
                               Blast::whereIn('receiver', $failedNumber)->whereStatus('pending')->update(['status' => 'failed']);
                           
                             $data = [];
                           
-                            checkBlastPending($campaign, $isCampaignNotPaused);
+                             checkBlastPending($campaign, $isCampaignNotPaused);
                         } catch (\Throwable $th) {
                             Log::info($th);
                             // if in blasts still have status pending change status to finish
-                            $blasts->each(function ($item) {
-                                $item->status = 'failed';
-                                $item->save();
-                            });
+//                            $blasts->each(function ($item) {
+//                                $item->status = 'failed';
+//                                $item->save();
+//                            });
 
                             // reset $data
                             $data = [];
-                            checkBlastPending($campaign, $isCampaignNotPaused);
+                             checkBlastPending($campaign, $isCampaignNotPaused);
                         }
 
                     } else {

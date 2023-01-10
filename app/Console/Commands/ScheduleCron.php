@@ -41,27 +41,27 @@ class ScheduleCron extends Command
      */
     public function handle()
     {
-        
-      $numbers = Number::whereStatus('Connected')->get();
-     
-    try {
-      $url = env('WA_URL_SERVER').'/backend-initialize';
-      Log::info('Auto connect whatsapp running');
-      foreach ($numbers as $n) {
 
-        $campaign = Campaign::whereSender($n->body)->whereStatus('processing')->count();
-        if($campaign == 0){
+        $numbers = Number::whereStatus('Connected')->get();
 
-          $result =  Http::withOptions(['verify' => false])->asForm()->post($url,['token' => $n->body]);
-          Log::info($result);
+        try {
+            $url = env('WA_URL_SERVER').'/backend-initialize';
+            Log::info('Auto connect whatsapp running');
+            foreach ($numbers as $n) {
+
+                $campaign = Campaign::whereSender($n->body)->whereStatus('processing')->count();
+                if($campaign == 0){
+
+                    $result =  Http::withOptions(['verify' => false])->asForm()->post($url,['token' => $n->body]);
+                    Log::info($result);
+                }
+
+                // delay 2 seconds
+
+            }
+        } catch (\Throwable $th) {
+            Log::info('Failed auto connect whatsapp');
         }
 
-       // delay 2 seconds
-       
-      }
-    } catch (\Throwable $th) {
-       Log::info('Failed auto connect whatsapp');
-    }
-     
     }
 }

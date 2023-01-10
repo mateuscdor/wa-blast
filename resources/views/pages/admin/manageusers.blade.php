@@ -88,6 +88,9 @@
                                                     <th>Email</th>
                                                     <th>Devices</th>
                                                     <th>Limit Devices</th>
+                                                    @if($levelId === \App\Models\Level::LEVEL_RESELLER)
+                                                        <th>Limit Akun Admin</th>
+                                                    @endif
                                                     <th>Subscription</th>
                                                     <th>Expired at</th>
                                                     <th>Action</th>
@@ -108,7 +111,9 @@
                                                         <td>
                                                             {{$user->total_device['max']}}
                                                         </td>
-
+                                                        @if($levelId === \App\Models\Level::LEVEL_RESELLER)
+                                                            <td>{{Auth::user()->createdUsers()->where('level_id', \App\Models\Level::LEVEL_ADMIN)->count()}}/{{Auth::user()->limit_admin_account}}</td>
+                                                        @endif
                                                         <td>
                                                             @if($user->is_expired_subscription)
                                                                 <span class="badge badge-danger">Inactive</span>

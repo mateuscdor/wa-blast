@@ -133,7 +133,7 @@ class CampaignController extends Controller
 
         } else {
 
-            $campaign->status = 'processing';
+            $campaign->status = 'waiting';
             $campaign->save();
             session()->flash('alert' , [
                 'type' => 'success',

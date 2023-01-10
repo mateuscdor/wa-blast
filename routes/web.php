@@ -79,6 +79,7 @@ Route::middleware(['installed.app','auth'])->group(function (){
     Route::get('/contact/{contacts:tag_id}',[ContactController::class,'index']);
 
     Route::post('/tags/livechat/import', [TagController::class, 'livechatImport'])->name('livechatToBook');
+    Route::delete('/tags/deleteMany', [TagController::class, 'deleteSelections'])->name('tags.delete.selected');
     Route::get('/tags',[TagController::class,'index'])->name('tag');
     Route::post('/tags',[TagController::class,'store'])->name('tag.store');
     Route::delete('/tags',[TagController::class,'destroy'])->name('tag.delete');

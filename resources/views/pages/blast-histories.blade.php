@@ -122,7 +122,7 @@
         }
         setInterval(()=>{
             refreshData();
-        }, 3000)
+        }, 1000)
     </script>
 @endpush
 

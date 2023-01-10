@@ -24,10 +24,10 @@ const setStatus = (device, status) => {
     }
 }
 
-function dbQuery(query) {
+function dbQuery(...query) {
     return new Promise((data, reject) => {
-        db.query(query, (err, res) => {
-            if (err) reject(err);
+        db.query(...query, (err, res) => {
+            if (err) return reject(err);
             try {
                 data(res);
             } catch (error) {
@@ -38,10 +38,10 @@ function dbQuery(query) {
     })
 }
 
-function dbUpdateQuery(query){
-    return new Promise(data => {
-       db.execute(query, (err, res) => {
-           if (err) throw err;
+function dbUpdateQuery(...query){
+    return new Promise((data, reject) => {
+       db.execute(...query, (err, res) => {
+           if (err) return reject(err);
            try {
                data(res);
            } catch (error) {

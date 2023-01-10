@@ -133,6 +133,7 @@ const autoReply = async (msg, sock) => {
             }
 
             let message = await sock.sendMessage(msg.key.remoteJid, reply).catch(e => console.log(e));
+            log.info('Sending Autoreply Message to ' + msg.key.remoteJid?.split(':')[0] + '...');
 
             let timestamp = parseInt(message.messageTimestamp) + 2;
 
@@ -226,7 +227,6 @@ const saveLiveChat = async function(msg, sock){
         // console.log(`Unread messages from ${from} to ${me}`);
 
     } catch (e){
-        console.log(e);
         return;
     }
 }

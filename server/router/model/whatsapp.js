@@ -1,6 +1,6 @@
 'use strict'
 
-const { default: makeWASocket, makeWALegacySocket, downloadContentFromMessage, WAMessageStatus} = require('@adiwajshing/baileys')
+const { default: makeWASocket, makeWALegacySocket, WAMessageStatus} = require('@adiwajshing/baileys')
 const { fetchLatestBaileysVersion, useMultiFileAuthState, makeCacheableSignalKeyStore } = require('@adiwajshing/baileys')
 const WhatsappLogger = require('./whatsapp-logger');
 const MessageHandler = require('./message-handler');
@@ -11,7 +11,6 @@ const lib = require('../../lib')
 const fs = require('fs')
 const logManager = new WhatsappLogger();
 const messenger = new MessageHandler();
-let sock = ObjectManager();
 let QR = ObjectManager();
 let intervalStore = ObjectManager();
 const { setStatus } = require('../../database/index')
@@ -24,7 +23,6 @@ const axios = require('axios')
  **********************************************************/
 const MAIN_LOGGER = require('../../lib/pino')
 const request = require("request").defaults({ encoding: null });
-const sharp = require('sharp');
 const {dbQuery, dbUpdateQuery, toQueryTimestamp} = require("../../database");
 const {onConnectionOpen, onConnectionClose, onQRConnection, onConnectionStart} = require("./events");
 const cron = require("node-cron");
@@ -38,158 +36,179 @@ const useStore = !process.argv.includes('--no-store')
 // keep this out of the socket itself, so as to prevent a message decryption/encryption loop across socket restarts
 const msgRetryCounterMap = () => MessageRetryMap = {}
 
+const onMessageUpsert = function({sock, token, io}){
+    return function(event){
+        try {
+            if (!event.messages) {
+                return;
+            }
+            for (let message of event.messages) {
+                saveLiveChat(message, sock.get(token)).catch(e=>{log.error(e)});
+                autoReply(message, sock.get(token)).catch(e=>{log.error(e)});
+            }
+        } catch (e){
+            log.error(e);
+        }
+    }
+}
+const onCredentialUpdate = function({saveCreds}){
+    return async function(){
+        try {
+            await saveCreds();
+        } catch (e){
+        }
+    }
+}
+
 // start a connection
 const connectToWhatsApp = async (token, io = null) => {
 
-    return new Promise((resolve, reject) => {
+    if(sock.get(token) && sock.getInfo(token).isOnline){
+        return {
+            status: true,
+            sock: sock.get(token),
+            qrcode: sock.getInfo(token).qr,
+            message: "Please scan the QR Code"
+        }
+    }
+    log.info('Connection is starting...');
+    try {
         let qrCode = QR.get(token);
         if (qrCode) {
             if (io !== null) {
                 io.emit('qrcode', { token, data: qrCode, message: "please scan with your Whatsapp Account" })
             }
-            return {
+            return ({
                 status: false,
                 sock: sock.get(token),
                 qrcode: qrCode,
                 message: "Please scan the QR Code"
-            }
+            });
         }
+        await onConnectionStart({sock, io, token});
 
-        const connect = async function(){
-            try {
-                await onConnectionStart({sock, io, token});
-                // fetch latest version of Chrome For Linux
-                const chrome = await getChromeLates()
-                const { version, isLatest } = await fetchLatestBaileysVersion()
+        // fetch latest version of Chrome For Linux
 
-                log.info('You re using whatsapp gateway M Pedia v4.3.2 - Contact admin if any trouble : 082298859671');
-                log.info(`using WA v${version.join('.')}, isLatest: ${isLatest}`)
+        log.info('Connection initiating 1...');
 
-                const {state, saveCreds} = await useMultiFileAuthState(`./credentials/${token}`)
-                let socket = makeWASocket({
-                    version,
-                    linkPreviewImageThumbnailWidth: 150,
-                    generateHighQualityLinkPreview: true,
-                    // browser: ['Linux', 'Chrome', '103.0.5060.114'],
-                    browser: ['M Pedia', 'Chrome', chrome?.data?.versions[0]?.version],
-                    patchMessageBeforeSending: (message) => {
-                        const requiresPatch = !!(
-                            message.buttonsMessage
-                            // || message.templateMessage
-                            || message.listMessage
-                        );
-                        if (requiresPatch) {
-                            message = {
-                                viewOnceMessage: {
-                                    message: {
-                                        messageContextInfo: {
-                                            deviceListMetadataVersion: 2,
-                                            deviceListMetadata: {},
-                                        },
-                                        ...message,
-                                    },
+        const chrome = JSON.parse(fs.readFileSync(__dirname + '/chrome-stable.json').toString('utf8'));
+        const { version, isLatest } = await fetchLatestBaileysVersion()
+
+        log.info('You re using whatsapp gateway M Pedia v4.3.2 - Contact admin if any trouble : 082298859671');
+        log.info(`using WA v${version.join('.')}, isLatest: ${isLatest}`)
+
+        const {state, saveCreds} = await useMultiFileAuthState(`./credentials/${token}`)
+        let socket = makeWASocket({
+            version,
+            linkPreviewImageThumbnailWidth: 150,
+            generateHighQualityLinkPreview: true,
+            // browser: ['Linux', 'Chrome', '103.0.5060.114'],
+            browser: ['M Pedia', 'Chrome', chrome?.versions[0]?.version],
+            patchMessageBeforeSending: (message) => {
+                const requiresPatch = !!(
+                    message.buttonsMessage
+                    // || message.templateMessage
+                    || message.listMessage
+                );
+                if (requiresPatch) {
+                    message = {
+                        viewOnceMessage: {
+                            message: {
+                                messageContextInfo: {
+                                    deviceListMetadataVersion: 2,
+                                    deviceListMetadata: {},
                                 },
-                            };
-                        }
-
-                        return message;
-                    },
-                    printQRInTerminal: false,
-                    logger,
-                    auth: {
-                        creds: state.creds,
-                        keys: makeCacheableSignalKeyStore(state.keys, logger)
-                    }
-                });
-                sock.set(token, socket);
-                logManager.init(socket, token);
-                messenger.init(socket, token);
-                socket.ev.process(
-                    async (events) => {
-                        try {
-                            log.info(events);
-                            if (events['connection.update']) {
-                                const update = events['connection.update'];
-                                const {connection, lastDisconnect, qr} = update;
-
-                                if (connection === 'close') {
-                                    return onConnectionClose({lastDisconnect, io, sock, token, clearConnection, qr: QR, loop: async () => await connectToWhatsApp(token, io)});
-                                }
-                                if (qr) {
-                                    // SEND TO YOUR CLIENT SIDE
-                                    onQRConnection({io, token, qrCode: qr, qr: QR})
-                                }
-                                if (connection === 'open') {
-                                    await onConnectionOpen({io, token, qr: QR, sock})
-                                }
-                            }
-
-                            if (events['messages.upsert']) {
-
-                                const event = events['messages.upsert'];
-
-                                if (!event.messages) {
-                                    return;
-                                }
-                                for (let message of event.messages) {
-                                    saveLiveChat(message, sock.get(token)).catch(e=>{log.error(e)});
-                                    autoReply(message, sock.get(token)).catch(e=>{log.error(e)});
-                                }
-                            }
-
-                            if (events['creds.update']) {
-                                saveCreds().catch(e => {
-                                })
-                            }
-                        } catch (e){
-                            log.error('process', e);
-                        }
-                    }
-                )
-                // logManager.init(socket, token);
-                resolve({
-                    sock: sock.get(token),
-                    qrcode: QR.get(token)
-                });
-            } catch (e) {
-                if(e.code === 'ENOTFOUND'){
-                    log.error('Network Problem...');
-                } else {
-                    log.error('Make WA Socket Problem', e);
+                                ...message,
+                            },
+                        },
+                    };
                 }
+
+                return message;
+            },
+            printQRInTerminal: false,
+            logger,
+            auth: {
+                creds: state.creds,
+                keys: makeCacheableSignalKeyStore(state.keys, logger)
             }
-        }
+        });
+        sock.set(token, socket);
+        logManager.init(socket, token);
+        messenger.init(socket, token);
+        socket.ev.on('connection.update', async function(event){
+            const {connection, lastDisconnect, qr} = event;
+
+            try {
+                if (connection === 'close') {
+                    await onConnectionClose({
+                        lastDisconnect, io, sock, token, clearConnection, qr: QR, async loop() {
+                            // socket.ev.removeAllListeners('connection.update');
+                            await connectToWhatsApp(token, io)
+                        }
+                    });
+                }
+                if (qr) {
+                    // SEND TO YOUR CLIENT SIDE
+                    onQRConnection({io, token, qrCode: qr, qr: QR})
+                }
+                if (connection === 'open') {
+                    await onConnectionOpen({io, token, qr: QR, sock})
+                }
+            } catch (e){
+                log.error(e);
+            }
+        })
+        socket.ev.on('messages.upsert', onMessageUpsert({sock, token, io}))
+        socket.ev.on('creds.update', onCredentialUpdate({saveCreds}))
+        socket.waitForConnectionUpdate((ev) => {
+
+            if(ev.connection === 'close'){
+                ev.isOnline = false;
+                if(ev.lastDisconnect?.error?.output?.statusCode === 408){
+                    setTimeout(()=>{
+                        connectToWhatsApp(token).catch(e => {
+
+                        });
+                    }, 2000);
+                }
+            } else {
+                ev.lastDisconnect = undefined;
+            }
+            if(!io && ev.qr){
+                return;
+            }
+
+            sock.setInfo(token, {
+                ...sock.getInfo(token),
+                ...ev,
+            })
 
 
-        connect().then(r => {
-            resolve(r);
         }).catch(e => {
 
         });
-    });
+        return ({
+            status: sock.getInfo(token)?.isOnline,
+            sock: sock.get(token),
+            qrcode: QR.get(token)
+        });
+    } catch (e) {
+        if(e?.code === 'ENOTFOUND'){
+            log.error('Network Problem...');
+        } else {
+            log.error('Make WA Socket Problem');
+        }
+    }
 }
 //
 async function connectWaBeforeSend(token) {
     let status = undefined;
-    let connect = await connectToWhatsApp(token)
 
-    await connect.sock.ev.on('connection.update', (con) => {
-        const { connection, qr } = con
-        if (connection === 'open') {
-            status = true;
-        }
-        if (qr) {
-            status = false;
-        }
-    })
-    let counter = 0
-    while (typeof status === 'undefined') {
-        counter++
-        if (counter > 4) {
-
-            break
-        }
-        await new Promise(resolve => setTimeout(resolve, 1000));
+    try {
+        let wa = await connectToWhatsApp(token);
+        status = wa?.status;
+    } catch (e){
     }
 
     return status;
@@ -226,8 +245,11 @@ const sendMessage = async (token, number, msg) => {
             //     quality: 30
             // }).resize({ width: 100 }).toBuffer()).toString('base64');
         }
+        if('buttons' in message && !message.buttons.length){
+            delete message.buttons;
+        }
          // awaiting sending message
-        return sock.get(token).sendMessage(formatReceipt(number), message)
+        return await sock.get(token).sendMessage(formatReceipt(number), message)
 
     } catch (error) {
         return false
@@ -238,75 +260,73 @@ const sendMessage = async (token, number, msg) => {
 // media
 async function sendMedia(token, destination, type, url, fileName, caption) {
 
+    let sendMsg;
     /**
      * type is "url" or "local"
      * if you use local, you must upload into src/public/temp/[fileName]
      */
     const number = formatReceipt(destination);
     try {
-        if (type == 'image') {
-            var sendMsg = await sock.get(token).sendMessage(
+        if (type === 'image') {
+            sendMsg = await sock.get(token).sendMessage(
                 number,
                 { image: url ? { url } : fs.readFileSync('src/public/temp/' + fileName), caption: caption ? caption : null },
-            )
-        } else if (type == 'video') {
-            var sendMsg = await sock.get(token).sendMessage(
+            );
+        } else if (type === 'video') {
+            sendMsg = await sock.get(token).sendMessage(
                 number,
-                { video: url ? { url } : fs.readFileSync('src/public/temp/' + fileName), caption: caption ? caption : null },
-            )
-        } else if (type == 'audio') {
-            var sendMsg = await sock.get(token).sendMessage(
+                {
+                    video: url ? {url} : fs.readFileSync('src/public/temp/' + fileName),
+                    caption: caption ? caption : null
+                },
+            );
+        } else if (type === 'audio') {
+            sendMsg = await sock.get(token).sendMessage(
                 number,
                 { audio: url ? { url } : fs.readFileSync('src/public/temp/' + fileName), caption: caption ? caption : null },
-            )
-        } else if (type == 'pdf') {
-            var sendMsg = await sock.get(token).sendMessage(
+            );
+        } else if (type === 'pdf') {
+            sendMsg = await sock.get(token).sendMessage(
                 number,
                 { document: { url: url }, mimetype: 'application/pdf' },
                 { url: url }
-            )
-        } else if (type == 'xls') {
-            var sendMsg = await sock.get(token).sendMessage(
+            );
+        } else if (type === 'xls') {
+            sendMsg = await sock.get(token).sendMessage(
                 number,
                 { document: { url: url }, mimetype: 'application/excel' },
                 { url: url }
-            )
-        } else if (type == 'xls') {
-            var sendMsg = await sock.get(token).sendMessage(
-                number,
-                { document: { url: url }, mimetype: 'application/excel' },
-                { url: url }
-            )
-        } else if (type == 'xlsx') {
-            var sendMsg = await sock.get(token).sendMessage(
+            );
+        } else if (type === 'xlsx') {
+            sendMsg = await sock.get(token).sendMessage(
                 number,
                 { document: { url: url }, mimetype: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' },
                 { url: url }
-            )
-        } else if (type == 'doc') {
-            var sendMsg = await sock.get(token).sendMessage(
+            );
+        } else if (type === 'doc') {
+            sendMsg = await sock.get(token).sendMessage(
                 number,
                 { document: { url: url }, mimetype: 'application/msword' },
                 { url: url }
-            )
-        } else if (type == 'docx') {
-            var sendMsg = await sock.get(token).sendMessage(
+            );
+        } else if (type === 'docx') {
+            sendMsg = await sock.get(token).sendMessage(
                 number,
                 { document: { url: url }, mimetype: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' },
                 { url: url }
-            )
-        } else if (type == 'zip') {
-            var sendMsg = await sock.get(token).sendMessage(
+            );
+        } else if (type === 'zip') {
+            sendMsg = await sock.get(token).sendMessage(
                 number,
                 { document: { url: url }, mimetype: 'application/zip' },
                 { url: url }
-            )
-        } else if (type == 'mp3') {
-            var sendMsg = await sock.get(token).sendMessage(
+            );
+        } else if (type === 'mp3') {
+            sendMsg = await sock.get(token).sendMessage(
                 number,
                 { document: { url: url }, mimetype: 'application/mp3' },
                 { url: url }
-            )
+            );
         } else {
             console.log('Please add your own role of mimetype')
             return false
@@ -323,6 +343,7 @@ async function sendMedia(token, destination, type, url, fileName, caption) {
 // button message
 async function sendButtonMessage(token, number, button, message, footer, image) {
 
+    let buttonMessage;
     /**
      * type is "url" or "local"
      * if you use local, you must upload into src/public/temp/[fileName]
@@ -335,24 +356,23 @@ async function sendButtonMessage(token, number, button, message, footer, image) 
             return { buttonId: i, buttonText: { displayText: x.displayText }, type: 1 }
         })
         if (image) {
-            var buttonMessage = {
+            buttonMessage = {
                 image: type == 'url' ? { url: image } : fs.readFileSync('src/public/temp/' + image),
                 // jpegThumbnail: await lib.base64_encode(),
                 caption: message,
                 footer: footer,
                 buttons: buttons,
                 headerType: 4
-            }
+            };
         } else {
-            var buttonMessage = {
+            buttonMessage = {
                 text: message,
                 footer: footer,
                 buttons: buttons,
                 headerType: 1
-            }
+            };
         }
-        const sendMsg = await sock.get(token).sendMessage(formatReceipt(number), buttonMessage)
-        return sendMsg
+        return await sock.get(token).sendMessage(formatReceipt(number), buttonMessage)
     } catch (error) {
         console.log(error)
         return false
@@ -363,6 +383,7 @@ async function sendButtonMessage(token, number, button, message, footer, image) 
 
 async function sendTemplateMessage(token, number, button, text, footer, image) {
 
+    let buttonMessage;
     try {
         // const templateButtons = [
         //     { index: 1, urlButton: { displayText: button[0].displayText, url: button[0].url } },
@@ -372,24 +393,23 @@ async function sendTemplateMessage(token, number, button, text, footer, image) {
       
 
         if (image) {
-            var buttonMessage = {
+            buttonMessage = {
                 caption: text,
                 footer: footer,
                 templateButtons: button,
                 image: { url: image },
                 viewOnce: true
-            }
+            };
         } else {
-            var buttonMessage = {
+            buttonMessage = {
                 text: text,
                 footer: footer,
                 templateButtons: button,
                 viewOnce: true
-            }
+            };
         }
 
-        const sendMsg = await sock.get(token).sendMessage(formatReceipt(number), buttonMessage)
-        return sendMsg
+        return await sock.get(token).sendMessage(formatReceipt(number), buttonMessage)
     } catch (error) {
         console.log(error)
         return false
@@ -404,8 +424,7 @@ async function sendListMessage(token, number, list, text, footer, title, buttonT
 
         const listMessage = { text, footer, title, buttonText, sections: [list] }
 
-        const sendMsg = await sock.get(token).sendMessage(formatReceipt(number), listMessage)
-        return sendMsg
+        return await sock.get(token).sendMessage(formatReceipt(number), listMessage)
     } catch (error) {
         console.log(error)
         return false
@@ -419,10 +438,7 @@ async function fetchGroups(token) {
     // check is exists token
     try {
         let getGroups = await sock.get(token).groupFetchAllParticipating();
-        let groups = Object.entries(getGroups).slice(0).map(entry => entry[1]);
-     
-
-        return groups
+        return Object.entries(getGroups).slice(0).map(entry => entry[1])
     } catch (error) {
         return false
     }
@@ -431,10 +447,10 @@ async function fetchGroups(token) {
 // if exist
 async function isExist(token, number) {
 
-    if(!number){
-        number = formatReceipt(token)
-    }
     try {
+        if(!number){
+            number = formatReceipt(token)
+        }
         if (!sock.get(token)) {
             const status = await connectWaBeforeSend(token)
             if (!status) {
@@ -457,18 +473,18 @@ async function isExist(token, number) {
 
 // close connection
 async function deleteCredentials(token, io = null) {
-    if (io !== null) {
-        io.emit('message', { token: token, message: 'Logging out..' })
-    }
     try {
+        if (io !== null) {
+            io.emit('message', { token: token, message: 'Logging out..' })
+        }
         if (typeof sock.get(token) === 'undefined') {
             const status = await connectWaBeforeSend(token)
             if (status) {
-                sock.get(token).logout()
+                sock.get(token)?.logout()
                 sock.remove(token)
             }
         } else {
-            sock.get(token).logout()
+            sock.get(token)?.logout()
             sock.remove(token)
         }
         QR.remove(token);
@@ -530,13 +546,11 @@ function clearConnection(token) {
 }
 
 async function initialize(req, res) {
-    const { token } = req.body
+    const { token } = req.body;
     if (token) {
         const fs = require('fs')
         const path = `./credentials/${token}`
         if (fs.existsSync(path)) {
-
-            sock.remove(token);
             connectWaBeforeSend(token).then(status => {
                 if (status) {
                     return res.status(200).json({ status: true, message: 'Connection restored' })
@@ -556,14 +570,23 @@ async function initialize(req, res) {
 }
 
 const init = function () {
-    dbQuery('SELECT * FROM numbers WHERE status = "Connected"').then(numbers => {
+
+    getChromeLates().then(r => {
+       fs.writeFileSync(__dirname + '/chrome-stable.json', JSON.stringify(r.data));
+    }).catch(e => {
+        console.error('Chrome Error' + e);
+    });
+
+    dbQuery('SELECT * FROM numbers').then(numbers => {
+        numbers = numbers.filter(n => fs.readdirSync('./credentials/' + formatReceipt(n.body).split('@')[0])?.length);
         for (let {body} of numbers) {
-            isExist(body).then(exists => {
+            connectWaBeforeSend(body).then(exists => {
                 log.info(`Status (${body}): ${exists ? 'Connected' : 'Disconnected'}`);
                 if (!exists) {
                     return setStatus(body, 'Disconnect');
+                } else {
+                    return setStatus(body, 'Connected');
                 }
-                return exists;
             }).then(r => {
                 dbQuery('SELECT chats.*, numbers.body as device_number, target_number FROM chats JOIN conversations ON conversations.id = chats.conversation_id JOIN numbers ON numbers.body = conversations.device_number WHERE numbers.live_chat = 1 AND numbers.status = "Connected" AND message_id IS NULL').then(chats => {
 

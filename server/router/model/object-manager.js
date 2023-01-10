@@ -1,25 +1,46 @@
 const ObjectManager = function(){
-    const qrCodes = {};
+    const items = {};
+    const itemInfo = {};
 
     const remove = function(t){
-        if(t in qrCodes){
-            delete qrCodes[t];
+        if(t in items){
+            delete items[t];
         }
     }
 
     const set = function(key, value){
-        qrCodes[key] = value;
+        items[key] = value;
+    }
+
+    const setInfo = function(key, value){
+        log.warn('Setting info for (' + key + '): ' + JSON.stringify(value));
+        itemInfo[key] = value;
+    }
+
+    const getInfo = function(key, value){
+        return itemInfo[key] ?? {};
     }
 
     const get = function(key){
-        return qrCodes[key] ?? null;
+        return items[key] ?? null;
+    }
+
+    const all = function(){
+        return Object.keys(items);
+    }
+    const allInfo = function(){
+        return itemInfo;
     }
 
     return {
         remove,
         set,
         get,
-    }
+        all,
+        setInfo,
+        getInfo,
+        allInfo,
+    };
 };
 
 module.exports = ObjectManager;

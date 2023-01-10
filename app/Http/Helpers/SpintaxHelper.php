@@ -13,13 +13,13 @@ if(!class_exists('SpintaxHelper')){
             return preg_replace('(\{\{nomor\}\})', $contact->number, $message);
         }
         public static function generateSpintaxMap(string $message){
-            return preg_replace_callback('/(\{\{([\w\s]*([|][\w\s]*)*)\}\})/gi', function ($matches) {
+            return preg_replace_callback('(\{\{([\w\s]*([|][\w\s]*)*)\}\})', function ($matches) {
                 $splits = explode('|', $matches[1] ?? '');
                 $items = array_filter($splits, function($item){return !!strlen($item);});
                 if(!count($items))
                     return '';
                 return $items[array_rand($items)];
-            }, $message);
+            }, $message, -1);
         }
         private static function generateColumnMap(string $message, Contact $contact){
             return preg_replace_callback('(\{\{(var)([0-9]+)\}\})', function ($matches) use($contact) {

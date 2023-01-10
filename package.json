@@ -27,7 +27,8 @@
   },
   "nodemonConfig": {
     "ignore": [
-      "credentials/*"
+      "credentials/*",
+      "chrome-stable.json"
     ]
   },
   "devDependencies": {

@@ -127,16 +127,19 @@ const fetchGroups = async (req, res) => {
 
 const blast = async (req, res) => {
     const dat = req.body.data;
+
     const data = JSON.parse(dat);
     const delay = req.body.delay ?? 3;
 
 
     const check = await wa.isExist(data[0].sender, formatReceipt(data[0].sender));
- 
+
 
     if (!check) {
         return res.send({ status: false, message: 'Check your whatsapp connection' })
     }
+
+
     let successNumber = [];
     let failedNumber = [];
     function waitforme(milisec) {
@@ -147,8 +150,8 @@ const blast = async (req, res) => {
     }
     try {
         await asyncForEach(data, async (item, index) => {
+
             const { sender, receiver, message, campaign_id } = item;
-            console.log(item);
             if (sender && receiver && message) {
 
                 const sendingTextMessage = await wa.sendMessage(sender, receiver, message)

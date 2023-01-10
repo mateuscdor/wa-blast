@@ -52,6 +52,10 @@ class UserTemplate extends Model
                 $msg = ['text' => $obj->message];
                 break;
             case 'image':
+                if(!$obj->image){
+                    $obj->message_type = 'template';
+                    return self::generateFromMessage($obj);
+                }
                 $arr = explode('.', $obj->image);
                 $ext = end($arr);
                 $allowext = ['jpg', 'png', 'jpeg'];
@@ -92,12 +96,12 @@ class UserTemplate extends Model
                 }
 
                 $buttons = collect($obj->buttons ?? [])->map(function($item, $index){
+                    $typePurpose = $item->type === 'url' ? 'url' : ($item->type === 'phone'? 'phoneNumber': 'id');
+                    $type = $item->type === 'url' ? 'urlButton' : ($item->type === 'phone'? 'callButton': 'quickReplyButton');
+
                     return [
-                        'buttonId' => $item->id,
-                        'buttonText' => [
-                            'displayText' => $item->label,
-                        ],
-                        'type' => 1,
+                        'index' => $index,
+                        $type => ['displayText' => $item->label, $typePurpose => $typePurpose === 'id'? $item->id: $item->text],
                     ];
                 });
 

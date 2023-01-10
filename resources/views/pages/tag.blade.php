@@ -6,7 +6,14 @@
 
 @push('head')
     <link href="{{asset('plugins/datatables/datatables.min.css')}}" rel="stylesheet">
-{{--    <link href="{{asset('plugins/select2/css/select2.css')}}" rel="stylesheet">--}}
+    <style>
+        tr.selected {
+            background-color: #bec0c2;
+        }
+        tr[data-id] {
+            cursor: pointer;
+        }
+    </style>
 @endpush
 
 @section('content')
@@ -38,6 +45,22 @@
             <div class="card">
                 <div class="card-header d-flex justify-content-between">
                     <h5 class="card-title">Tags</h5>
+                    <div class="dropdown d-none" id="dropdown_actions">
+                        <a class="btn btn-warning btn-sm dropdown-toggle" href="#" role="button" id="dropdownMenuLink" data-bs-toggle="dropdown" aria-expanded="false">
+                            Actions
+                        </a>
+
+                        <ul class="dropdown-menu" aria-labelledby="dropdownMenuLink">
+                            <li>
+                                <a class="dropdown-item" href="#">
+                                    <span id="tag_delete_modal_button" class="btn btn-danger w-100" data-bs-toggle="modal" data-bs-target="#modal-delete-confirm">
+                                        Delete Tags
+                                    </span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+
                     <!-- <button type="button" class="btn btn-danger " data-bs-toggle="modal" data-bs-target="#selectNomor"><i class="material-icons-outlined">contacts</i>Hapus semua</button>
                     <button type="button" class="btn btn-primary " data-bs-toggle="modal" data-bs-target="#selectNomor"><i class="material-icons-outlined">contacts</i>Generate Kontak</button>
                     <div class="d-flex justify-content-right">
@@ -59,11 +82,11 @@
                         <tbody>
                         @foreach ($tags as $tag)
 
-                            <tr>
+                            <tr data-id="{{$tag->id}}">
                                 <td>{{$tag->name}}</td>
                                 <td>
                                     <div class="d-flex justify-content-center">
-                                        <a class="btn btn-success btn-sm mx-3" href="/contact/{{$tag->id}}">View List Numbers</a>
+                                        <a data-stop-propagation class="btn btn-success btn-sm mx-3" href="/contact/{{$tag->id}}">View List Numbers</a>
                                         <form action="{{route('tag.delete')}}" method="POST" onsubmit="return confirm('do you sure want to delete this tag? ( All contacts in this tag also will delete! )')">
                                             @method('delete')
                                             @csrf
@@ -108,6 +131,31 @@
         </div>
     </div>
 
+    <div class="modal fade" id="modal-delete-confirm" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exampleModalLabel">Delete Tags</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form action="{{route('tags.delete.selected')}}" method="POST" enctype="multipart/form-data">
+                    @csrf
+                    @method('DELETE')
+                    <div class="modal-body">
+                        <p>
+                            Are you sure want to delete <span id="tag_count">0</span> tags?
+                        </p>
+                        <div id="selected_tags"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" name="submit" class="btn btn-danger">Delete</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     {{-- Modal select sender --}}
     <div class="modal fade" id="selectNomor" tabindex="-1" aria-labelledby="SelectNomorModal" aria-hidden="true">
         <div class="modal-dialog">
@@ -139,7 +187,57 @@
 
 @push('scripts')
     <script src="{{asset('js/pages/datatables.js')}}"></script>
-{{--    <script src="{{asset('js/pages/select2.js')}}"></script>--}}
     <script src="{{asset('plugins/datatables/datatables.min.js')}}"></script>
-{{--    <script src="{{asset('plugins/select2/js/select2.full.min.js')}}"></script>--}}
+    <script>
+        let selectedGroup = '';
+        let selected = {};
+        $('.nav-link[id^="nav_group"]').click(function(){
+            let id = $(this).attr('id').replace('nav_group_', '');
+            if(id === 'default'){
+                selectedGroup = '';
+            } else {
+                selectedGroup = parseInt(id);
+            }
+
+            if(!selected[selectedGroup]?.length){
+                $('#dropdown_actions').addClass('d-none');
+            } else {
+                $('#dropdown_actions').removeClass('d-none');
+            }
+        });
+        $('table tbody').on('click', 'tr[data-id]', function () {
+            const id = $(this).data('id');
+            const groupId = $(this).data('groupId') ?? '';
+            if(!selected[groupId]){
+                selected[groupId] = []
+            }
+
+            const index = $.inArray(id, selected[groupId]);
+
+            if ( index === -1 ) {
+                selected[groupId].push( id );
+            } else {
+                selected[groupId].splice( index, 1 );
+            }
+
+            if(selected[groupId]?.length){
+                $('#dropdown_actions').removeClass('d-none');
+            } else {
+                $('#dropdown_actions').addClass('d-none');
+            }
+
+            $(this).toggleClass('selected');
+        });
+        $('#tag_delete_modal_button').click(function(){
+            $('#selected_tags').html('')
+            for(let index in selected[selectedGroup]){
+                let id = selected[selectedGroup][index];
+                $('#selected_tags').append($(`<input type="hidden" name="id[${index}]" value="${id}"/>`))
+           }
+           $('#tag_count').text(selected[selectedGroup].length);
+        });
+        $('[data-stop-propagation]').click(function(e){
+           e.stopPropagation();
+        });
+    </script>
 @endpush

@@ -5,42 +5,46 @@ const ucFirst = function(str){
 const WhatsappLogger = function(){
     const init = function(socket, token){
 
-        socket.ev.on('connection.update', function(event){
+        try {
+            socket.ev.on('connection.update', function(event){
 
-            const {connection, lastDisconnect, qr, isOnline, receivedPendingNotifications, isNewLogin} = event;
-            let eventType = qr? 'Generated QR': ucFirst(connection? 'Connection (' + connection + ')': connection);
+                try {
+                    const {connection, lastDisconnect, qr, isOnline, receivedPendingNotifications, isNewLogin} = event;
+                    let eventType = qr? 'Generated QR': ucFirst(connection? 'Connection (' + connection + ')': connection);
 
-            if(!eventType){
-                if(isOnline){
-                    eventType = 'Online (' + (isOnline? 'true': 'false') + ')';
-                } else if(receivedPendingNotifications){
-                    eventType = 'Received Pending Notifications';
-                } else if(isNewLogin) {
-                    eventType = 'New Login';
+                    if(!eventType){
+                        if(isOnline){
+                            eventType = 'Online (' + (isOnline? 'true': 'false') + ')';
+                        } else if(receivedPendingNotifications){
+                            eventType = 'Received Pending Notifications';
+                        } else if(isNewLogin) {
+                            eventType = 'New Login';
+                        }
+                    } else if(connection === 'close'){
+                        log.error(lastDisconnect);
+                    }
+
+                    log.info(`Event Type (${token}): ${eventType}`);
+                } catch (e){
+                    console.log('BAD THINGS HAPPENS')
                 }
-            } else if(connection === 'close'){
-                log.error(lastDisconnect);
-            }
 
-            log.info(`Event Type (${token}): ${eventType}`);
-
-        });
-
-        socket.ev.on('creds.update', function(event){
-            log.info(`Event Type (${token}): Credential Updated`);
-        });
-
-        socket.ev.on('messaging-history.set', function(event){
-            log.info(`Event Type (${token}): Messaging History Updates... (Disabled)`);
-        })
-
-        socket.ev.on('messages.update', function(event){
-            log.info(`Event Type (${token}): Message Update`);
-        });
-
-        socket.ev.on('messages.upsert', function(event){
-            log.info(`Event Type (${token}): ${event.messages?.length} Messages Received`);
-        });
+            });
+            socket.ev.on('creds.update', function(event){
+                log.info(`Event Type (${token}): Credential Updated`);
+            });
+            socket.ev.on('messaging-history.set', function(event){
+                log.info(`Event Type (${token}): Messaging History Updates... (Disabled)`);
+            })
+            socket.ev.on('messages.update', function(event){
+                log.info(`Event Type (${token}): Message Update`);
+            });
+            socket.ev.on('messages.upsert', function(event){
+                log.info(`Event Type (${token}): ${event.messages?.length} Messages Received`);
+            });
+        } catch (e){
+            console.log(e);
+        }
 
     };
     return {

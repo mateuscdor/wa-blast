@@ -46,7 +46,7 @@
 
 
 
-                <div class="col-xl-6">
+                <div class="col-xl-4 flex-grow-1">
                     <div class="card widget widget-stats">
                         <div class="card-body">
                             <div class="widget-stats-container d-flex">
@@ -63,7 +63,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-xl-6">
+                <div class="col-xl-4 flex-grow-1">
                     <div class="card widget widget-stats">
                         <div class="card-body">
                             <div class="widget-stats-container d-flex">
@@ -81,6 +81,31 @@
                         </div>
                     </div>
                 </div>
+                @php
+                    $isReseller = Auth::user()->level_id === \App\Models\Level::LEVEL_RESELLER;
+                    $isAdmin = Auth::user()->level_id === \App\Models\Level::LEVEL_ADMIN;
+                    $limitAkun = $isAdmin? Auth::user()->package->users ?? 0: Auth::user()->limit_admin_account;
+                    $createdUsers = $isAdmin? Auth::user()->createdUsers()->count() ?? 0: Auth::user()->createdUsers()->where('level_id', \App\Models\Level::LEVEL_ADMIN)->count();
+                @endphp
+                @if($isReseller || $isAdmin)
+                    <div class="col-xl-4">
+                        <div class="card widget widget-stats">
+                            <div class="card-body">
+                                <div class="widget-stats-container d-flex">
+                                    <div class="widget-stats-icon widget-stats-icon-success">
+                                        <i class="material-icons-outlined">people</i>
+                                    </div>
+                                    <div class="widget-stats-content flex-fill">
+                                        <span class="widget-stats-title">Jumlah Akun {{$isReseller? 'Admin': 'Customer Service'}}</span>
+                                        <span class="widget-stats-info">{{ $createdUsers }} dari limit {{ $limitAkun }}</span>
+
+                                    </div>
+
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                @endif
             </div>
         </div>
 

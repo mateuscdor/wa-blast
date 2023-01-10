@@ -17,8 +17,10 @@ const UpdateMessageFromDB = function(messageId, updates){
     queries = queries.join(' ');
 
     dbUpdateQuery(`UPDATE chats SET ${queries} WHERE message_id = "${messageId}"`).then(r => {
-
-    }).catch(e=>{});
+        log.info("Updated Chat Query for messageId: " + messageId);
+    }).catch(e=>{
+        log.error("Update Query Error");
+    });
 }
 
 const MessageHandler = function(){
@@ -26,35 +28,38 @@ const MessageHandler = function(){
     const init = function(socket, token){
 
         socket.ev.on('messages.update', function(event){
-            for(let message of event){
-                if(message.key.removeJid?.split('@')[0] === token){
+            try {
+                for(let message of event){
+                    if(message.key.removeJid?.split('@')[0] === token){
 
-                    getMessageFromDB(message.key.id).then(message => {
+                        getMessageFromDB(message.key.id).then(message => {
 
-                        if(!message){
-                            return;
-                        }
+                            if(!message){
+                                return;
+                            }
 
-                        let lastStatus = message.status;
-                        let status = message.update.status;
+                            let lastStatus = message.status;
+                            let status = message.update.status;
 
-                        if(message.key.fromMe){
-                            lastStatus = {
-                                [WAMessageStatus.PENDING]: 'PENDING',
-                                [WAMessageStatus.DELIVERY_ACK]: 'DELIVERED',
-                                [WAMessageStatus.ERROR]: 'ERROR',
-                                [WAMessageStatus.READ]: 'READ',
-                            }[status] ?? lastStatus;
-                        }
+                            if(message.key.fromMe){
+                                lastStatus = {
+                                    [WAMessageStatus.PENDING]: 'PENDING',
+                                    [WAMessageStatus.DELIVERY_ACK]: 'DELIVERED',
+                                    [WAMessageStatus.ERROR]: 'ERROR',
+                                    [WAMessageStatus.READ]: 'READ',
+                                }[status] ?? lastStatus;
+                            }
 
-                        UpdateMessageFromDB(message.key.id, {
-                            read_status: lastStatus
-                        });
+                            UpdateMessageFromDB(message.key.id, {
+                                read_status: lastStatus
+                            });
 
-                    }).catch(e => {});
+                        }).catch(e => {});
+                    }
                 }
+            } catch (e){
+                console.log(e)
             }
-
         });
 
 

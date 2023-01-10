@@ -213,13 +213,14 @@
                 dataType : 'json',
                 success : (result) => {
                     // window.location = '';
-                    window.location.href = '{{route('campaign.lists')}}'
+                    if(result !== 'false' && result)
+                        window.location.href = '{{route('campaign.lists')}}'
                     $('#startBlast').attr('disabled',false);
                     $('#startBlast').html('Start');
                 },
                 error : (err) => {
                     //console.log(err);
-                    window.location = '';
+                    // window.location = '';
                     // console.log(err);
                     $('#startBlast').attr('disabled',false);
                     $('#startBlast').html('Start');

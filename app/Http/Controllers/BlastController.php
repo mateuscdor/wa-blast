@@ -179,10 +179,11 @@ class BlastController extends Controller
                 'type' => $messageType,
                 'message' => json_encode($msg),
                 'delay' => $request->delay,
-                'status' => 'waiting',
+                'status' => 'finish',
                 'schedule' => $request->start_date ?? now(),
             ]);
 
+            $message = '';
             foreach ($contacts as $contact) {
                 // replace {name} with contact name
                 try {
@@ -196,11 +197,11 @@ class BlastController extends Controller
                         'message' => json_encode(UserTemplate::generateFromMessage(json_decode($message))),
                         'type' => $messageType,
                         'status' => 'pending',
-                        'created_at' => now(),
                     ];
 
                 } catch (\Throwable $th) {
                     $message = $msg;
+
                 }
 
 

@@ -2,11 +2,13 @@
 
 const fs = require('fs')
 const wa = require('./server/router/model/whatsapp')
-
+const ObjectManager = require('./server/router/model/object-manager');
+const cron = require('node-cron');
 
 require('dotenv').config()
 const lib = require('./server/lib')
 global.log = lib.log
+global.sock = ObjectManager();
 
 /**
  * EXPRESS FOR ROUTING
@@ -50,6 +52,7 @@ app.use((req, res, next) => {
 // body parser
 const bodyParser = require('body-parser')
 const {init} = require("./server/router/model/whatsapp");
+const Scheduler = require("./server/index")();
 // parse application/x-www-form-urlencoded
 
 app.use(bodyParser.urlencoded({ extended: false,limit: '50mb',parameterLimit: 100000 }))
@@ -64,21 +67,17 @@ app.use(require('./server/router'))
 
 io.on('connection', (socket) => {
   socket.on('StartConnection', (data) => {
-      try {
-          wa.connectToWhatsApp(data,io).catch(e => {});
-      } catch (e){
-          console.log(e);
-      }
+      wa.connectToWhatsApp(data,io).catch(e => {});
   })
     socket.on('LogoutDevice', (device) => {
-        try {
-            wa.deleteCredentials(device,io).catch(e => {});
-        } catch (e){
-            console.log(e);
-        }
+        wa.deleteCredentials(device,io).catch(e => {});
     })
 })
 server.listen(port, log.info(`Server run and listening port: ${port}`))
+process.on('unhandledRejection', (reason, p) => {
+    console.log('Unhandled Rejection at: Promise', p, 'reason:', reason);
+    // application specific logging, throwing an error, or other logic here
+});
 init();
-
+Scheduler.init();
 // console.log(Object.keys(server))
