@@ -43,6 +43,7 @@ const sendCampaignBlasts = async function({sender, blasts, delay, id: campaignId
     }
     dbUpdateQuery(`UPDATE campaigns SET status = "finish" WHERE id = "${campaignId}"`).catch(e=>{});
 }
+
 const blastMessage = async function(){
 
     try {
@@ -83,6 +84,39 @@ const blastMessage = async function(){
 
 };
 
+const autoReply = async function () {
+    try {
+        let pendingReplies = await dbQuery(`SELECT m.*, c.target_number as number, c.device_number as token FROM autoreply_messages m
+                                             LEFT JOIN chats ch ON ch.message_id = m.replied_to_message_id
+                                             LEFT JOIN conversations c ON c.id = ch.conversation_id
+                                             WHERE m.status = "pending"`);
+        let pendingIds = pendingReplies.map(p => p.id);
+        await dbUpdateQuery(`UPDATE autoreply_messages SET status = "processing" WHERE id IN (${db.escape(pendingIds)})`);
+        for(let {id, number, token, prepared_message: message} of pendingReplies){
+            let socket;
+            if(typeof message === 'string'){
+                message = JSON.parse(message);
+            }
+            log.info('[Auto Reply]: ' + token + ' is sending message...');
+            if(!!(socket = sock.get(token))){
+                socket.sendMessage(formatReceipt(number), message).then(msg => {
+                    log.info('[Auto Reply]: ' + token + ' a message sent...');
+                    dbUpdateQuery(`UPDATE autoreply_messages SET message_id = "${msg.key.id}", status = "success" WHERE id = "${id}"`).catch(e => {
+                        log.error('MySQL auto reply scheduler error');
+                    });
+                }).catch(e => {
+                    log.info('[Auto Reply]: ' + token + ' an error occurred...');
+                    dbUpdateQuery(`UPDATE autoreply_messages SET status = "failed" WHERE id = "${id}"`).catch(e => {
+                        log.error('MySQL auto reply scheduler error');
+                    });
+                });
+            }
+        }
+    } catch (e) {
+
+    }
+}
+
 const checkSocket = function(){
     for(let number in sock.allInfo()){
         if(sock.getInfo(number).isOnline){
@@ -96,13 +130,18 @@ const Scheduler = function(){
     const schedules = [
         {
             name: 'Blast Message',
-            time: '*/10 * * * * *',
+            time: '*/3 * * * * *',
             task: blastMessage,
         },
         {
             name: 'Global Socket',
             time: '*/3 * * * * *',
             task: checkSocket,
+        },
+        {
+            name: 'Auto Reply',
+            time: '*/3 * * * * *',
+            task: autoReply,
         }
     ];
 

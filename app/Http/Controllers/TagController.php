@@ -22,17 +22,27 @@ class TagController extends Controller
 
     public function store(Request $request){
         $request->validate([
-            'name' => ['required','min:3','unique:tags']
+            'id' => 'nullable|exists:tags,id',
+            'name' => ['required','min:3']
         ]);
 
-        Tag::create([
-            'user_id' => Auth::user()->id,
-            'name' => $request->name
-        ]);
+        if(!$request->id){
+            Tag::create([
+                'user_id' => Auth::user()->id,
+                'name' => $request->name
+            ]);
+        } else {
+            Tag::where([
+                'user_id' => Auth::user()->id,
+                'id' => $request->id,
+            ])->update([
+                'name' => $request->name
+            ]);
+        }
 
         return back()->with('alert',[
             'type' => 'success',
-            'msg' => 'Success add tag!'
+            'msg' => 'Successfully ' . (!$request->id? 'added': 'updated') . ' a tag!'
         ]);
     }
 

@@ -54,13 +54,41 @@ const autoReply = async (msg, sock) => {
         let replies;
         let result;
 
-        const equal = await dbQuery(`SELECT * FROM autoreplies WHERE keyword = "${command}" AND type_keyword = 'Equal' AND device = ${sock.user.id.split(':')[0]}`);
-        if (equal.length === 0) {
-            // select locate
-            result = await dbQuery(`SELECT * FROM autoreplies WHERE LOCATE(keyword, "${command}") > 0 AND type_keyword = 'Contain' AND device = ${sock.user.id.split(':')[0]}`);
-        } else {
-            result = equal;
-        }
+        result = await dbQuery(`SELECT * FROM autoreplies WHERE device = ${sock.user.id.split(':')[0]}`);
+        result = result.filter(r => {
+            return r.keyword.split('[|]').some(keyword => {
+                console.log(keyword);
+                console.log(command);
+               if (r.type_keyword === 'Contain') {
+                   return command.trim().toLowerCase().includes(keyword.trim().toLowerCase());
+               } else {
+                   return keyword.trim().toLowerCase() === command.trim().toLowerCase();
+               }
+           });
+        }).filter(r => {
+            let settings = {};
+            let allDays = ['sat', 'sun', 'mon', 'tue', 'wed', 'thu', 'fri'];
+            try {
+                settings = typeof r.settings === 'object' ? r.settings: JSON.parse(r.settings);
+                settings = {
+                    startTime: `${settings?.startTime ?? '00:00'}`.substr(0, 5),
+                    endTime: `${settings?.endTime ?? '24:00'}`.substr(0, 5),
+                    activeDays: settings?.activeDays ?? allDays,
+                }
+            } catch (e){
+                settings = {
+                    startTime: '00:00',
+                    endTime: '24:00',
+                    activeDays: allDays
+                };
+            }
+            let now = new Date();
+            let day = allDays[(now.getDay() + 1) % 7];
+            now = [now.getHours().toString().padStart(2, '0'), now.getMinutes().toString().padStart(2, '0')].join(':');
+            return now.localeCompare(settings.startTime) > 0
+                && now.localeCompare(settings.endTime) < 0
+                && settings.activeDays.includes(day);
+        });
 
         let destinationNumber = msg?.key?.remoteJid;
         let contact = {
@@ -93,16 +121,26 @@ const autoReply = async (msg, sock) => {
             replies = result.filter(res => {
                 return res.reply_when === 'All' ? true : res.reply_when === 'Group' && msg.key.remoteJid.includes('@g.us') ? true : res.reply_when === 'Personal' && !msg.key.remoteJid.includes('@g.us');
             }).map(r => {
-                return r.reply;
+                return {
+                    reply: r.reply,
+                    id: r.id
+                };
             })
         }
         // replace if exists {name} with sender name in reply
         for(let reply of replies){
+            let raw = reply;
+            reply = reply.reply;
+
+            if(typeof reply === 'string'){
+                reply = JSON.parse(reply);
+            }
+
             reply = JSON.parse(
                 (()=>{
                     let replaced = JSON.stringify(reply)
                         .replace(/\{\{nama\}\}/g, contact.name)
-                        .replace(/\{\{nomor\}\}/g, contact.number)
+                        .replace(/\{\{nomor\}\}/g, contact.number.split('@')[0])
                         .replace(/\{\{var\1([0-9]+)\}\}/g, function(match){
                             let id = match.replace(/\{\{var(.*)\}\}/, '$1');
                             try {
@@ -125,39 +163,46 @@ const autoReply = async (msg, sock) => {
                 })()
             )
 
-            if(typeof reply === 'string'){
-                reply = JSON.parse(reply);
-            }
+
             if(reply.buttons && !reply.buttons.length){
                 delete reply.buttons;
             }
 
-            let message = await sock.sendMessage(msg.key.remoteJid, reply).catch(e => console.log(e));
+            await dbQuery(`INSERT INTO autoreply_messages (autoreply_id, replied_to_message_id, status, prepared_message) VALUES ("${raw.id}", "${msg.key.id}", "processing", '${JSON.stringify(reply)}')`);
             log.info('Sending Autoreply Message to ' + msg.key.remoteJid?.split(':')[0] + '...');
 
-            let timestamp = parseInt(message.messageTimestamp) + 2;
-
-            const me = sock.user.id.split(':')[0];
-
-            setTimeout(async () => {
-                await generateChatQuery({
-                    me,
-                    from,
-                    senderName,
-                    messageId: message.key.id,
-                    senderType: "AUTO_REPLY",
-                    status: "PENDING",
-                    item: reply,
-                    timestamp,
+            sock.sendMessage(msg.key.remoteJid, reply).then(message => {
+                dbUpdateQuery(`UPDATE autoreply_messages SET message_id = "${message.key.id}", status = "success" WHERE autoreply_id = "${raw.id}" AND replied_to_message_id = "${msg.key.id}"`).catch(e=>{
+                    log.error('MySql Error (autoreply updating error)');
                 });
-                await dbQuery(`INSERT INTO autoreply_messages (message_id) VALUES ("${message.key.id}")`)
-            }, 3000);
+                let timestamp = parseInt(message?.messageTimestamp) + 2;
+                const me = sock.user.id.split(':')[0];
+                setTimeout(async () => {
+                    await generateChatQuery({
+                        me,
+                        from,
+                        senderName,
+                        messageId: message.key.id,
+                        senderType: "AUTO_REPLY",
+                        status: "PENDING",
+                        item: reply,
+                        timestamp,
+                    });
+                }, 3000);
+            }).catch(e => {
+                dbUpdateQuery(`UPDATE autoreply_messages SET status = "failed" WHERE autoreply_id = "${raw.id}" AND replied_to_message_id = "${msg.key.id}"`).catch(e=>{
+                    log.error('MySql Error (autoreply updating error)');
+                });
+                console.error(e);
+                log.error(`Error sending autoreply message (autoreply_id = ${raw.id})`);
+            });
         }
 
         //return;
 
     } catch (e) {
-        console.log(e)
+        console.log(e);
+        log.error('Auto reply error.');
     }
 }
 

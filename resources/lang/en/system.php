@@ -15,6 +15,7 @@ return [
 
     'home' => 'Dashboard',
     'autoreply' => 'Auto Reply',
+    'autoreply-history' => 'Auto Reply History',
     'contact' => 'Contacts',
     'contactlist' => 'Lists Contact',
     'taglist' => 'Lists Tag',

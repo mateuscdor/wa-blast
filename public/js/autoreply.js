@@ -15,9 +15,9 @@ $('#type').on('change', () => {
 })
 
 
-function viewReply(id) {
+function viewReply(id, historyId) {
     $.ajax({
-        url: `/autoreply/show-reply/${id}`,
+        url: `/autoreply/show-reply/${id}` + (historyId? `?historyId=${historyId}`: ''),
         type: 'GET',
         dataType: 'html',
         success: (result) => {

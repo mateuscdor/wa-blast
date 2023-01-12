@@ -28,7 +28,10 @@
   "nodemonConfig": {
     "ignore": [
       "credentials/*",
-      "chrome-stable.json"
+      "chrome-stable.json",
+      "whatsapp-storage/",
+      "whatsapp-storage/*/",
+      "whatsapp-storage/**/*"
     ]
   },
   "devDependencies": {

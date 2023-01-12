@@ -28,7 +28,7 @@
                                          <i class="material-icons">image</i> Choose
                                        </a>
                                      </div>
-                                    <input id="thumbnail" class="image-input"  type="text" name="image" disabled>
+                                    <input id="thumbnail" class="image-input" type="text" name="image" disabled>
                                 </div>
                             </div>`;
 
@@ -47,6 +47,7 @@
             }
             const fill = function(value){
                 $('#template_image_path').val(value);
+                $('#thumbnail').val(value);
             }
 
             return {

@@ -39,13 +39,13 @@ class Conversation extends Model
     }
 
     public function getLatestTimeAttribute(){
-        $item = $this->chats()->latest('sent_at')->first();
-        return $item ? $item->sent_at: null;
+        $item = $this->chats()->whereNotNull('sent_at')->latest('sent_at')->get();
+        return $item[0]->sent_at ?? null;
     }
 
     public function getOldestTimeAttribute(){
-        $item = $this->chats()->oldest('sent_at')->first();
-        return $item ? $item->sent_at: null;
+        $item = $this->chats()->whereNotNull('sent_at')->oldest('sent_at')->get();
+        return $item[0]->sent_at ?? null;
     }
 
     public function getCanSendMessageAttribute()

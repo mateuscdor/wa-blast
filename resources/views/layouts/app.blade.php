@@ -46,6 +46,27 @@ Dilarang share atau menjual belikan source code ini tanpa izin ya bos! biar berk
         div.dataTables_wrapper>.row>.col-sm-12 {
             overflow: auto;
         }
+        table>tbody>tr.selected {
+             background-color: #d9d9d9 !important;
+         }
+        tr[data-id] {
+            cursor: pointer;
+        }
+        .multi_input__selector {
+            background-color: rgba(109, 202, 10, 0.19);
+            color: #6dca0a;
+            font-size: 12px;
+            font-weight: 600;
+            border-radius: 100px;
+            width: fit-content;
+            white-space: nowrap;
+            padding: 2px 10px;
+            display: block;
+            user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            -webkit-user-select: none;
+        }
     </style>
 
 </head>
@@ -77,9 +98,13 @@ Dilarang share atau menjual belikan source code ini tanpa izin ya bos! biar berk
 <script src="{{asset('plugins/highlight/highlight.pack.js')}}"></script>
 <script src="{{asset('plugins/blockUI/jquery.blockUI.min.js')}}"></script>
 <script src="{{asset('js/main.min.js')}}"></script>
-<script src="{{asset('js/custom.js')}}"></script>
+<script src="{{asset('js/custom.js?t=' . getLastJSTime() . rand())}}"></script>
 <script src="{{asset('js/pages/blockui.js')}}"></script>
-
+<script>
+    $('[data-stop-propagation]').click(function(e){
+       e.stopPropagation();
+    });
+</script>
 @stack('scripts')
 </body>
 

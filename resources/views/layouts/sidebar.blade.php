@@ -43,11 +43,11 @@
                 <li class="{{request()->is('autoreply') ? 'active-page' : ''}}">
                     <a href="{{route('autoreply')}}" class=""><i class="material-icons-two-tone">message</i>{{__('system.autoreply')}}</a>
                 </li>
+                <li class="{{request()->is('autoreply-history') ? 'active-page' : ''}}">
+                    <a href="{{route('autoreply-history')}}" class=""><i class="material-icons-two-tone">history</i>{{__('system.autoreply-history')}}</a>
+                </li>
                 <li class="{{request()->is('tag') ? 'active-page' : ''}}">
                     <a href="{{route('tag')}}"><i class="material-icons-two-tone">contacts</i>Phone Book</a>
-                </li>
-                <li class="{{request()->is('templates') ? 'active-page' : ''}}">
-                    <a href="{{route('template.lists')}}" class=""><i class="material-icons-two-tone">extension</i>Message Templates</a>
                 </li>
                 <li class="{{request()->is('campaign/create') ? 'active-page' : ''}}">
                     <a href="{{route('campaign.create')}}" class=""><i class="material-icons-two-tone">email</i>Create Campaign</a>
@@ -59,6 +59,9 @@
                     <a href="{{route('messagetest')}}" class=""><i class="material-icons-two-tone">note</i>{{__('system.test')}}</a>
                 </li>
             @endif
+            <li class="{{request()->is('templates') ? 'active-page' : ''}}">
+                <a href="{{route('template.lists')}}" class=""><i class="material-icons-two-tone">extension</i>Message Templates</a>
+            </li>
             <li class="{{request()->is('rest-api') ? 'active-page' : ''}}">
                 <a href="{{route('rest-api')}}"><i class="material-icons-two-tone">api</i>{{__('system.restapi')}}</a>
             </li>

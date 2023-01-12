@@ -44,7 +44,7 @@ function hasLiveChatAccess(){
     return ($package && $package->live_chat);
 }
 function getLastJSTime(){
-    return '2342353';
+    return '234223353';
 }
 
 function getSystemSettings($name, $default = ''){

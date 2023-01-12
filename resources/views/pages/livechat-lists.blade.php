@@ -164,10 +164,10 @@
                                                             data-to-time="{{$conversation->latest_time}}"
                                                     >
                                                     <span data-from-id="{{$conversation->id}}" class="badge badge-warning">
-                                                        {{\Carbon\Carbon::make($conversation->oldest_time)}}
+                                                        {{$conversation->oldest_time}}
                                                     </span>
                                                         <span data-to-id="{{$conversation->id}}" class="badge badge-primary">
-                                                        {{\Carbon\Carbon::make($conversation->latest_time)}}
+                                                        {{$conversation->latest_time}}
                                                     </span>
                                                     </td>
                                                     <td>
@@ -242,10 +242,10 @@
                                                         data-to-time="{{$conversation->latest_time}}"
                                                 >
                                                     <span data-from-id="{{$conversation->id}}" class="badge badge-warning">
-                                                        {{\Carbon\Carbon::make($conversation->oldest_time)}}
+                                                        {{$conversation->oldest_time}}
                                                     </span>
                                                     <span data-to-id="{{$conversation->id}}" class="badge badge-primary">
-                                                        {{\Carbon\Carbon::make($conversation->latest_time)}}
+                                                        {{$conversation->latest_time}}
                                                     </span>
                                                 </td>
                                                 <td>

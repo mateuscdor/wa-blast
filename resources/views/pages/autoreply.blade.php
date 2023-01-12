@@ -6,6 +6,7 @@
 
 @push('head')
     <link href="{{asset('css/custom.css')}}" rel="stylesheet">
+    <link href="{{asset('plugins/datatables/datatables.min.css')}}" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/material-design-iconic-font/2.2.0/css/material-design-iconic-font.min.css" integrity="sha512-rRQtF4V2wtAvXsou4iUAs2kXHi3Lj9NE7xJR77DE7GHsxgY9RTWy93dzMXgDIG8ToiRTD45VsDNdTiUagOFeZA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <style>
         .modal { overflow: auto !important; }
@@ -35,8 +36,6 @@
         }
     </style>
 @endpush
-{{-- <link href="{{asset('plugins/datatables/datatables.min.css')}}" rel="stylesheet"> --}}
-{{-- <link href="{{asset('plugins/select2/css/select2.css')}}" rel="stylesheet"> --}}
 @section('content')
     <div class="content-wrapper">
         @if (session()->has('alert'))
@@ -62,24 +61,35 @@
                     <div class="card-header d-flex justify-content-between">
 
                         <h5 class="card-title">Lists auto respond {{Session::get('selectedDevice')}} </h5>
-                        <div class="d-flex ">
+                        <div class="d-flex gap-2">
+                            <div class="dropdown d-none" id="dropdown_actions">
+                                <a class="btn btn-warning btn-sm dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    Actions
+                                </a>
 
+                                <ul class="dropdown-menu" aria-labelledby="dropdownMenuLink">
+                                    <li>
+                                        <a class="dropdown-item text-danger bg-outline-danger" href="#" id="selection_delete_toggle" data-bs-toggle="modal" data-bs-target="#modal-delete-confirm">
+                                            Delete
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
                             @if(Session::has('selectedDevice'))
-
                                 <form action="{{route('deleteAllAutoreply')}}" method="POST">
                                     @method('delete')
                                     @csrf
-                                    <button type="submit" name="delete" class="btn btn-danger btn-xs"><i class="material-icons">delete_outline</i>Delete All</button>
+                                    <button type="submit" name="delete" class="btn btn-danger btn-sm">Delete All</button>
                                 </form>
-                                <button type="button" class="btn btn-primary btn-xs mx-4" data-bs-toggle="modal" data-bs-target="#addAutoRespond"><i class="material-icons-outlined">add</i>Add</button>
+                                <button type="button" class="btn btn-primary btn-sm" id="addModalBtn" data-bs-toggle="modal" data-bs-target="#addAutoRespond">Add</button>
                             @endif
                         </div>
                     </div>
                     <div class="card-body rounded-lg">
-                        <table id="datatable1" class="display table table-striped table-bordered" style="width:100%">
+                        <table id="datatable1" class="display" style="width:100%">
                             {{-- if exist autoreplies variable foreach, else please select device --}}
 
-                            <thead class="">
+                            <thead>
                             <tr>
 
                                 <th>Keyword</th>
@@ -92,26 +102,32 @@
                             </thead>
                             <tbody>
 
-
-
                             @if(Session::has('selectedDevice'))
                                 @foreach ($autoreplies as $autoreply)
 
-                                    <tr>
+                                    <tr data-id="{{$autoreply->id}}">
 
 
-                                        <td>{{$autoreply['keyword']}} </td>
+                                        <td>{{implode(', ', explode('[|]', $autoreply['keyword']))}} </td>
                                         <td>Will respond if Keyword <span class="badge badge-success">{{$autoreply['type_keyword']}}</span> &  when the sender is <span class="badge badge-warning">{{$autoreply['reply_when']}}</span> </td>
                                         <td>{{$autoreply['type']}}</td>
-                                        <td><button class="btn btn-primary" onclick="viewReply({{$autoreply->id}})">View</button></td>
                                         <td>
-                                            <form action={{route('autoreply.delete')}} method="POST">
-                                                @method('delete')
-                                                @csrf
-                                                <input type="hidden" name="id" value="{{$autoreply->id}}">
-                                                <button type="submit" name="delete" class="btn btn-danger btn-sm"><i class="material-icons">delete_outline</i></button>
-                                            </form>
-
+                                            <button data-stop-propagation class="btn btn-primary btn-sm" onclick="viewReply({{$autoreply->id}})">
+                                                Preview
+                                            </button>
+                                        </td>
+                                        <td>
+                                            <div class="d-flex gap-2">
+                                                <button data-stop-propagation class="btn btn-warning btn-sm" data-bs-target="#addAutoRespond" data-bs-toggle="modal" data-edit-id="{{$autoreply['id']}}" data-autoreply="{{ json_encode($autoreply) }}">
+                                                    Edit
+                                                </button>
+                                                <form action={{route('autoreply.delete')}} method="POST">
+                                                    @method('delete')
+                                                    @csrf
+                                                    <input type="hidden" name="id" value="{{$autoreply->id}}">
+                                                    <button type="submit" name="delete" class="btn btn-danger btn-sm">Delete</button>
+                                                </form>
+                                            </div>
                                         </td>
                                     </tr>
                                 @endforeach
@@ -143,7 +159,7 @@
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="exampleModalLabel">Add Auto Reply</h5>
+                    <h5 class="modal-title" id="autoreply-modal-title">Add Auto Reply</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <form action="" method="POST" enctype="multipart/form-data" id="form">
@@ -177,10 +193,85 @@
                                 <input type="radio" id="sender_type_all" class="form-check-input" value="All" checked name="reply_when"><label for="sender_type_all" class="form-check-label">All</label>
                             </div>
                         </div>
-                        <label for="keyword" class="form-label">Keyword</label>
-                        <input type="text" name="keyword" class="form-control" id="keyword" required>
 
                         <div class="row mt-2">
+                            <div class="col">
+                                <label for="keyword" class="form-label">Keywords</label>
+                                <input type="text" class="form-control" placeholder="Enter to add a keyword" name="keyword_input" id="keyword">
+                                <input type="hidden" name="keyword" id="keywords">
+                                <div id="keyword_container">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mt-2">
+                            <div class="col-sm-6">
+                                <label for="start_time" class="form-label">Active Start Time</label>
+                                <input type="time" name="start_time" class="form-control" id="start_time" required>
+                            </div>
+                            <div class="col-sm-6">
+                                <label for="end_time" class="form-label">Active End Time</label>
+                                <input type="time" name="end_time" class="form-control" id="end_time" required>
+                            </div>
+                        </div>
+
+                        <div class="row mt-2">
+                            <div class="col-sm-6">
+                                <label for="active_days" class="form-label">Active Days</label>
+                                <div class="dropdown" id="dd_days">
+                                    <a class="btn btn-outline-success btn-sm dropdown-toggle w-100" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                        Select days
+                                    </a>
+
+                                    <ul class="dropdown-menu">
+                                        <li>
+                                            <label for="active_day_1" data-stop-propagation class="form-check flex dropdown-item">
+                                                <input class="form-check-input" type="checkbox" data-value="sat" id="active_day_1" name="active_days[0]">
+                                                <span class="form-check-label flex-grow-1 d-block">Sabtu</span>
+                                            </label>
+                                        </li>
+                                        <li>
+                                            <label for="active_day_2" data-stop-propagation class="form-check flex dropdown-item">
+                                                <input class="form-check-input" type="checkbox" data-value="sun" id="active_day_2" name="active_days[1]">
+                                                <span class="form-check-label flex-grow-1 d-block">Minggu</span>
+                                            </label>
+                                        </li>
+                                        <li>
+                                            <label for="active_day_3" data-stop-propagation class="form-check flex dropdown-item">
+                                                <input class="form-check-input" type="checkbox" data-value="mon" id="active_day_3" name="active_days[2]">
+                                                <span class="form-check-label flex-grow-1 d-block">Senin</span>
+                                            </label>
+                                        </li>
+                                        <li>
+                                            <label for="active_day_4" data-stop-propagation class="form-check flex dropdown-item">
+                                                <input class="form-check-input" type="checkbox" data-value="tue" id="active_day_4" name="active_days[3]">
+                                                <span class="form-check-label flex-grow-1 d-block">Selasa</span>
+                                            </label>
+                                        </li>
+                                        <li>
+                                            <label for="active_day_5" data-stop-propagation class="form-check flex dropdown-item">
+                                                <input class="form-check-input" type="checkbox" data-value="wed" id="active_day_5" name="active_days[4]">
+                                                <span class="form-check-label flex-grow-1 d-block">Rabu</span>
+                                            </label>
+                                        </li>
+                                        <li>
+                                            <label for="active_day_6" data-stop-propagation class="form-check flex dropdown-item">
+                                                <input class="form-check-input" type="checkbox" data-value="thu" id="active_day_6" name="active_days[5]">
+                                                <span class="form-check-label flex-grow-1 d-block">Kamis</span>
+                                            </label>
+                                        </li>
+                                        <li>
+                                            <label for="active_day_7" data-stop-propagation class="form-check flex dropdown-item">
+                                                <input class="form-check-input" type="checkbox" data-value="fri" id="active_day_7" name="active_days[6]">
+                                                <span class="form-check-label flex-grow-1 d-block">Jumat</span>
+                                            </label>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mt-3">
                             <div class="col">
                                 <div class="form-switch">
                                     <input class="form-check-input" type="checkbox" id="created_template">
@@ -212,7 +303,7 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                        <button type="submit" name="submit" class="btn btn-primary">Add</button>
+                        <button type="submit" name="submit" class="btn btn-primary" id="submitBtn">Submit</button>
                     </div>
                 </form>
             </div>
@@ -230,19 +321,55 @@
             </div>
         </div>
     </div>
+    <div class="modal fade" id="modal-delete-confirm" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exampleModalLabel">Delete Auto Reply</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form action="{{route('autoreply.delete.selected')}}" method="POST" enctype="multipart/form-data">
+                    @csrf
+                    @method('DELETE')
+                    <div class="modal-body">
+                        <p>
+                            Are you sure want to delete <span id="selection_count">0</span> autoreplies?
+                        </p>
+                        <div id="selection_ids"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" name="submit" class="btn btn-danger">Delete</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 @endsection
 
 @push('scripts')
     <!--  -->
-    {{-- <script src="{{asset('js/pages/datatables.js')}}"></script> --}}
-    {{-- <script src="{{asset('js/pages/select2.js')}}"></script> --}}
     <script src="{{asset('plugins/datatables/datatables.min.js')}}"></script>
-    {{-- <script src="{{asset('plugins/select2/js/select2.full.min.js')}}"></script> --}}
     <script src="{{asset('js/autoreply.js?t='.getLastJSTime())}}"></script>
     <script>
 
+        let isUpdating = false;
         let isUsingCreatedTemplate = false;
         $('#message_templates').hide();
+        $('#datatable1').DataTable();
+        let multiSelector = new MultiInputCreator({
+            inputSelector: '#keyword',
+            hiddenSelector: '#keywords',
+            createdSelector: '#keyword_container',
+            hiddenCreator: function(p, c, i){
+                if(!p){
+                    return c;
+                }
+                return p + '[|]' + c;
+            },
+        });
+
+        multiSelector.init();
 
         $('#created_template').on('change', function(){
             let checked = $(this).prop('checked');
@@ -257,6 +384,82 @@
             }
         });
 
+        $('[data-autoreply]').click(function(){
+
+            let autoreply = $(this).data('autoreply');
+
+            let keywords = autoreply.keyword.split('[|]');
+
+            $('[name="keyword"]').val('');
+            multiSelector.fill(keywords);
+
+            $('[name="start_time"]').val(autoreply.settings?.startTime);
+            $('[name="end_time"]').val(autoreply.settings?.endTime);
+            $(`[name="type_keyword"][value="${autoreply.type_keyword}"]`).prop('checked', true);
+            $('[name="device"]').val(autoreply.device);
+            $(`[name="reply_when"][value="${autoreply.reply_when}"]`).prop('checked', true);
+            $('[id^=active_day_]').each(function(){
+                let el = $(this);
+                let val = el.data('value');
+                if((autoreply.settings?.activeDays ?? []).includes(val)){
+                    el.prop('checked', true);
+                } else {
+                    el.prop('checked', false);
+                }
+            });
+
+
+            let currentData = JSON.parse(autoreply.reply);
+            isUpdating = autoreply.id;
+            $('#autoreply-modal-title').text('Edit Auto Reply');
+            $('#message_type').val(autoreply.type)
+            $('#message_type').trigger('change')
+            let buttons = currentData.buttons ?? [];
+            let list = currentData.list ?? {};
+            let footer = currentData.footer ?? "";
+            let body = currentData.text ?? currentData.caption ?? currentData.message ?? '';
+            let image = currentData.image?.url ?? "";
+            buttonCreator.fill(buttons);
+            listCreator.fill(list);
+            footerCreator.fill(footer);
+            bodyCreator.fill(body);
+            mediaCreator.fill(image);
+        });
+
+        const selected = {};
+        const selectedGroup = '';
+        $('table tbody').on('click', 'tr[data-id]', function () {
+            const id = $(this).data('id');
+            const groupId = $(this).data('groupId') ?? '';
+            if(!selected[groupId]){
+                selected[groupId] = []
+            }
+
+            const index = $.inArray(id, selected[groupId]);
+
+            if ( index === -1 ) {
+                selected[groupId].push( id );
+            } else {
+                selected[groupId].splice( index, 1 );
+            }
+
+            if(selected[groupId]?.length){
+                $('#dropdown_actions').removeClass('d-none');
+            } else {
+                $('#dropdown_actions').addClass('d-none');
+            }
+
+            $(this).toggleClass('selected');
+        });
+        $('#selection_delete_toggle').click(function(){
+            $('#selection_ids').html('')
+            for(let index in selected[selectedGroup]){
+                let id = selected[selectedGroup][index];
+                $('#selection_ids').append($(`<input type="hidden" name="id[${index}]" value="${id}"/>`))
+            }
+            $('#selection_count').text(selected[selectedGroup].length);
+        });
+
         $('#form').on('submit', function(e){
             e.preventDefault();
 
@@ -268,13 +471,26 @@
             } else {
                 data = getAllValues();
             }
+            let url = '{{isset($template)? route('autoreply', $template->id): route('autoreply')}}';
+
+            if(isUpdating){
+                data.id = isUpdating;
+            }
 
             data.label = $('#template_name').val();
             data.keyword = $('[name="keyword"]').val();
-            data.type_keyword = $('[name="type_keyword"][checked]').val();
+            data.keywords = $('[name="keywords"]').val();
+            data.start_time = $('[name="start_time"]').val();
+            data.end_time = $('[name="end_time"]').val();
+            data.type_keyword = $('[name="type_keyword"]:checked').val();
             data.device = $('[name="device"]').val();
-            data.reply_when = $('[name="reply_when"][checked]').val();
-            const url = '{{isset($template)? route('autoreply', $template->id): route('autoreply')}}';
+            data.reply_when = $('[name="reply_when"]:checked').val();
+            data.active_days = Array.from($('[id^=active_day_]:checked').map(function(){
+                let el = $(this);
+                return el.data('value');
+            }));
+            
+            data.active_days = JSON.stringify(data.active_days);
 
             $.ajax({
                 method : 'POST',
@@ -300,6 +516,35 @@
         });
         $('#modal-spintax').on('hide.bs.modal', function(){
             $('#addAutoRespond').modal('show');
+        });
+        $('#addModalBtn').click(function(){
+            isUpdating = false;
+            $('#form').trigger('reset');
+
+            $('[name="keyword"]').val('');
+            multiSelector.fill([]);
+
+            $('[name="start_time"]').val('');
+            $('[name="end_time"]').val('');
+            $('[name="type_keyword"]:checked').val('');
+            $('[name="reply_when"]:checked').val('');
+            $('[id^=active_day_]').each(function(){
+                $(this).prop('checked', false);
+            });
+
+            $('#autoreply-modal-title').text('Add Auto Reply');
+            $('#message_type').val('')
+            $('#message_type').trigger('change')
+            let buttons = [];
+            let list = {};
+            let footer = "";
+            let body = "";
+            let image = "";
+            buttonCreator.fill(buttons);
+            listCreator.fill(list);
+            footerCreator.fill(footer);
+            bodyCreator.fill(body);
+            mediaCreator.fill(image);
         });
     </script>
 @endpush

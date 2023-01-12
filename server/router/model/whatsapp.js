@@ -1,6 +1,6 @@
 'use strict'
 
-const { default: makeWASocket, makeWALegacySocket, WAMessageStatus} = require('@adiwajshing/baileys')
+const { default: makeWASocket, makeWALegacySocket, WAMessageStatus, makeInMemoryStore} = require('@adiwajshing/baileys')
 const { fetchLatestBaileysVersion, useMultiFileAuthState, makeCacheableSignalKeyStore } = require('@adiwajshing/baileys')
 const WhatsappLogger = require('./whatsapp-logger');
 const MessageHandler = require('./message-handler');
@@ -23,7 +23,7 @@ const axios = require('axios')
  **********************************************************/
 const MAIN_LOGGER = require('../../lib/pino')
 const request = require("request").defaults({ encoding: null });
-const {dbQuery, dbUpdateQuery, toQueryTimestamp} = require("../../database");
+const {dbQuery, dbUpdateQuery, toQueryTimestamp, db} = require("../../database");
 const {onConnectionOpen, onConnectionClose, onQRConnection, onConnectionStart} = require("./events");
 const cron = require("node-cron");
 
@@ -37,12 +37,14 @@ const useStore = !process.argv.includes('--no-store')
 const msgRetryCounterMap = () => MessageRetryMap = {}
 
 const onMessageUpsert = function({sock, token, io}){
-    return function(event){
+    return async function(event){
         try {
             if (!event.messages) {
                 return;
             }
-            for (let message of event.messages) {
+            let ids = event.messages.map(m => m?.key?.id).filter(f => !!f);
+            let foundIds = (await dbQuery(`SELECT message_id FROM chats WHERE message_id IN (${db.escape(ids)})`)).map(m => m.message_id);
+            for (let message of event.messages.filter(m => !foundIds.includes(m.key.id))) {
                 saveLiveChat(message, sock.get(token)).catch(e=>{log.error(e)});
                 autoReply(message, sock.get(token)).catch(e=>{log.error(e)});
             }
@@ -58,6 +60,30 @@ const onCredentialUpdate = function({saveCreds}){
         } catch (e){
         }
     }
+}
+
+const updateContacts = function({token, contacts}){
+    let folder = fs.readdirSync('./whatsapp-storage/');
+    let dest = './whatsapp-storage/' + token + '/contacts.json';
+    if(!folder.includes(token)){
+        fs.mkdirSync('./whatsapp-storage/' + token);
+        fs.writeFileSync(dest, '[]');
+    }
+    let json = JSON.parse(fs.readFileSync(dest).toString('utf8'));
+    let foundIds = [];
+    json = json.map(j => {
+        let found = contacts.find(c => c.id === j.id);
+        if(found){
+            foundIds.push(found.id);
+            return {
+                ...j,
+                ...found
+            };
+        }
+        return j;
+    })
+    json.push(...contacts.filter(c => !foundIds.includes(c.id)));
+    fs.writeFileSync(dest, JSON.stringify(json));
 }
 
 // start a connection
@@ -161,6 +187,18 @@ const connectToWhatsApp = async (token, io = null) => {
         })
         socket.ev.on('messages.upsert', onMessageUpsert({sock, token, io}))
         socket.ev.on('creds.update', onCredentialUpdate({saveCreds}))
+        socket.ev.on('messaging-history.set', function(event){
+            updateContacts({token, contacts: event.contacts});
+        })
+        socket.ev.on('contacts.upsert', function(event){
+            updateContacts({token, contacts: event});
+        })
+        socket.ev.on('contacts.update', function(event){
+            updateContacts({token, contacts: event});
+        })
+        socket.ev.on('contacts.set', function(event){
+            updateContacts({token, contacts: event});
+        });
         socket.waitForConnectionUpdate((ev) => {
 
             if(ev.connection === 'close'){
@@ -199,6 +237,7 @@ const connectToWhatsApp = async (token, io = null) => {
         } else {
             log.error('Make WA Socket Problem');
         }
+        console.log(e);
     }
 }
 //
@@ -532,9 +571,11 @@ function clearConnection(token) {
     setStatus(token, 'Disconnect');
     log.info('Token Information (' + token + '): Removing Credentials')
     if (fs.existsSync(`./credentials/${token}`)) {
-        fs.rmSync(`./credentials/${token}`, { recursive: true, force: true }, (err) => {
-            if (err) console.log(err)
-        })
+        fs.rmSync(`./credentials/${token}`, { recursive: true, force: true })
+        console.log(`credentials/${token} is deleted`);
+    }
+    if (fs.existsSync(`./whatsapp-storage/${token}`)) {
+        fs.rmSync(`./whatsapp-storage/${token}`, { recursive: true, force: true })
         console.log(`credentials/${token} is deleted`);
     }
     // fs.rmdir(`credentials/${token}`, { recursive: true }, (err) => {
@@ -610,6 +651,8 @@ const init = function () {
         }
     }).catch(e => {});
 }
+
+
 
 module.exports = {
 

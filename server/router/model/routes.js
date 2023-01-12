@@ -5,6 +5,8 @@ const lib = require('../../lib')
 const { dbQuery, dbUpdateQuery, toQueryTimestamp} = require('../../database')
 const { asyncForEach, formatReceipt } = require('../helper')
 const {WAMessageStatus} = require("@adiwajshing/baileys");
+const fs = require("fs");
+const path = require("path");
 const createInstance = async (req, res) => {
 
     const { token } = req.body
@@ -228,6 +230,41 @@ const direct = async function (req, res) {
     }
 }
 
+const fetchWhatsappContacts = function(req, res){
+
+    let {token, all} = req.body;
+    if(!token){
+        return res.send({
+            success: false,
+            message: 'Bad Request'
+        });
+    }
+    let formatted = formatReceipt(token).split('@')[0];
+    let fullPath = './whatsapp-storage/' + formatted + '/contacts.json';
+
+    if(!fs.existsSync(fullPath)){
+        return res.send({
+            success: false,
+            message: `Token tidak ditemukan (${token})`
+        })
+    }
+
+    let contacts = JSON.parse(fs.readFileSync(fullPath).toString('utf8'));
+
+    if(all){
+        return res.send({
+            success: true,
+            message: 'Contacts Found',
+            data: contacts,
+        });
+    } else {
+        return res.send({
+            success: true,
+            message: 'Contacts Found',
+            data: contacts.filter(c => c.name),
+        });
+    }
+}
 
 module.exports = {
 
@@ -241,5 +278,6 @@ module.exports = {
     fetchGroups,
     blast,
     direct,
+    fetchWhatsappContacts,
 
 }

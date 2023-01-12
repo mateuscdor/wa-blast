@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AutoreplyMessages;
 use App\Models\UserTemplate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -27,6 +28,19 @@ class AutoreplyController extends Controller
 
     public function store(Request $request){
 
+        $isUpdating = $request->id;
+        $autoreply = null;
+        if($isUpdating){
+            $autoreply = Autoreply::where('user_id', Auth::id())->find($request->id);
+            if(!$autoreply){
+                session()->flash('alert', [
+                    'type' => 'danger',
+                    'msg' => 'Autoreply not found'
+                ]);
+
+                return response()->json('error', 404);
+            }
+        }
 //        $cek = Autoreply::whereDevice($request->device)->whereKeyword($request->keyword)->first();
 //        if($cek){
 //            session()->flash('alert', [
@@ -36,6 +50,21 @@ class AutoreplyController extends Controller
 //
 //            return response()->json('error', 400);
 //        }
+        $keyword = $request->keyword_input;
+        if($request->keyword){
+            $keywords = explode('[|]', $request->keyword);
+            if($keyword){
+                $keywords[] = $keyword;
+            }
+            $keyword = implode('[|]', $keywords);
+        } else if(!$keyword) {
+            session()->flash('alert', [
+                'type' => 'danger',
+                'msg' => 'Keyword must be defined'
+            ]);
+
+            return response()->json('error', 400);
+        }
 
         $messageType = $request->message_type;
         // create text
@@ -61,19 +90,30 @@ class AutoreplyController extends Controller
 
 
         $jsonReply = json_encode($message);
-        Autoreply::create([
+        $attributes = [
             'user_id' => Auth::id(),
             'device' => $request->device,
-            'keyword' => $request->keyword,
+            'keyword' => $keyword,
             'type_keyword' => $request->type_keyword,
             'type' => $messageType,
             'reply' => $jsonReply,
-            'reply_when' => $request->reply_when
-        ]);
+            'reply_when' => $request->reply_when,
+            'settings' => [
+                'startTime' => $request->start_time,
+                'endTime' => $request->end_time,
+                'activeDays' => json_decode($request->active_days ?? '[]') ?: ($request->active_days ?? [])
+            ]
+        ];
+        if($autoreply){
+            $autoreply->update($attributes);
+        } else {
+            $autoreply = new Autoreply($attributes);
+            $autoreply->save();
+        }
 
         session()->flash('alert', [
             'type' => 'success',
-            'msg' => 'Your auto reply was added!'
+            'msg' => 'Your auto reply was ' . ($isUpdating? 'updated': 'saved') . '!'
         ]);
 
         return response()->json('success');
@@ -81,41 +121,53 @@ class AutoreplyController extends Controller
 
     public function show($id,Request $request){
 
+        $history = $request->get('historyId');
+        if($history){
+            $history = AutoreplyMessages::find($history);
+        }
+
         if($request->ajax()){
             $dataAutoReply = Autoreply::find($id);
+            if($history && isset($history->prepared_message) && $history->prepared_message){
+                $reply = $history->prepared_message;
+                $keyword = $history->repliedMessage->message['text'] ?? $history->repliedMessage->message['caption'];
+            } else {
+                $reply = $dataAutoReply->reply;
+                $keyword = implode(' OR ', explode('[|]', $dataAutoReply->keyword));
+            }
 
             switch ($dataAutoReply->type) {
                 case 'list':
                     return view('ajax.autoreply.listshow', [
-                        'keyword'=>$dataAutoReply->keyword,
-                        'message'=> json_decode($dataAutoReply->reply)->text,
-                        'title'=> json_decode($dataAutoReply->reply)->title,
-                        'footer'=> json_decode($dataAutoReply->reply)->footer,
-                        'buttonText' => json_decode($dataAutoReply->reply)->buttonText,
-                        'sections' => json_decode($dataAutoReply->reply)->sections,
+                        'keyword'=>$keyword,
+                        'message'=> json_decode($reply)->text,
+                        'title'=> json_decode($reply)->title,
+                        'footer'=> json_decode($reply)->footer,
+                        'buttonText' => json_decode($reply)->buttonText,
+                        'sections' => json_decode($reply)->sections,
                     ]);
                 case 'text':
                     return view('ajax.autoreply.textshow',[
-                        'keyword'=>$dataAutoReply->keyword,
-                        'text'=> json_decode($dataAutoReply->reply)->text
+                        'keyword'=>$keyword,
+                        'text'=> json_decode($reply)->text
                     ])->render();
                     break;
                 case 'image':
                     return  view('ajax.autoreply.imageshow',[
-                        'keyword'=>$dataAutoReply->keyword,
-                        'caption'=> json_decode($dataAutoReply->reply)->caption,
-                        'image'=> json_decode($dataAutoReply->reply)->image->url,
-                        'buttons'=> json_decode($dataAutoReply->reply)->buttons,
+                        'keyword'=>$keyword,
+                        'caption'=> json_decode($reply)->caption,
+                        'image'=> json_decode($reply)->image->url,
+                        'buttons'=> json_decode($reply)->buttons,
                     ])->render();
                     break;
                 case 'button':
-                    // if exists property image in $dataAutoreply->reply
+                    // if exists property image in $reply
                     return  view('ajax.autoreply.buttonshow',[
-                        'keyword'=>$dataAutoReply->keyword,
-                        'message'=> json_decode($dataAutoReply->reply)->text ?? json_decode($dataAutoReply->reply)->caption,
-                        'footer' => json_decode($dataAutoReply->reply)->footer,
-                        'buttons'=> json_decode($dataAutoReply->reply)->buttons,
-                        'image'=> json_decode($dataAutoReply->reply)->image->url ?? null,
+                        'keyword'=>$keyword,
+                        'message'=> json_decode($reply)->text ?? json_decode($reply)->caption,
+                        'footer' => json_decode($reply)->footer,
+                        'buttons'=> json_decode($reply)->buttons,
+                        'image'=> json_decode($reply)->image->url ?? null,
                     ])->render();
                     break;
                 case 'template':
@@ -124,11 +176,11 @@ class AutoreplyController extends Controller
                     // if exists template 1
 
                     return  view('ajax.autoreply.templateshow',[
-                        'keyword'=>$dataAutoReply->keyword,
-                        'message'=> json_decode($dataAutoReply->reply)->text ?? json_decode($dataAutoReply->reply)->caption,
-                        'footer' => json_decode($dataAutoReply->reply)->footer,
-                        'templates' => json_decode($dataAutoReply->reply)->templateButtons,
-                        'image' => json_decode($dataAutoReply->reply)->image->url ?? null,
+                        'keyword'=>$keyword,
+                        'message'=> json_decode($reply)->text ?? json_decode($reply)->caption,
+                        'footer' => json_decode($reply)->footer,
+                        'templates' => json_decode($reply)->templateButtons,
+                        'image' => json_decode($reply)->image->url ?? null,
                     ])->render();
                     break;
                 default:
@@ -165,13 +217,35 @@ class AutoreplyController extends Controller
         return 'http request';
     }
 
+    public function deleteSelections(Request $request){
+        $request->validate([
+            'id' => 'required|array',
+            'id.*' => 'exists:autoreplies,id',
+        ]);
+
+        $userHasAccess = !Autoreply::with('user')->whereIn('id', $request->id)->where('user_id', '!=', Auth::id())->count();
+        if(!$userHasAccess){
+            return redirect()->back()->with('alert', [
+                'type' => 'danger',
+                'msg' => 'You don\'t have access to delete an autoreply or many autoreplies of the selected items',
+            ]);
+        }
+        Autoreply::with('messages')->whereIn('id', $request->id)->each(function($item){
+            $item->messages()->delete();
+            $item->delete();
+        });
+        return redirect()->back()->with('alert', [
+            'type' => 'success',
+            'msg' => count(($request->id)) . ' Autoreplies have been deleted',
+        ]);
+    }
+
     public function destroy(Request $request){
         Autoreply::whereId($request->id)->delete();
         return redirect(route('autoreply'))->with('alert',[
             'type' => 'success',
             'msg' => 'Deleted'
         ]);
-
     }
     public function destroyAll(Request $request){
         Autoreply::whereUserId(Auth::user()->id)->whereDevice(session()->get('selectedDevice'))->delete();

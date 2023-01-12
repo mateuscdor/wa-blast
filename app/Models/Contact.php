@@ -17,4 +17,7 @@ class Contact extends Model
     public function tag(){
         return $this->belongsTo(Tag::class);
     }
+    public function document(){
+        return $this->belongsTo(Document::class);
+    }
 }

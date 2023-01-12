@@ -4,6 +4,7 @@ use App\Http\Controllers\AdminController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\LogoutController;
 use App\Http\Controllers\AutoreplyController;
+use App\Http\Controllers\AutoreplyMessageController;
 use App\Http\Controllers\BlastController;
 use App\Http\Controllers\CampaignController;
 use App\Http\Controllers\ContactController;
@@ -65,18 +66,29 @@ Route::middleware(['installed.app','auth'])->group(function (){
     Route::get('/autoreply',[AutoreplyController::class,'index'])->name('autoreply');
 
     Route::post('/autoreply',[AutoreplyController::class,'store'])->name('autoreply');
-    Route::get('/autoreply/{type}',[AutoreplyController::class,'getFormByType']);
+    Route::delete('/autoreply/deleteMany',[AutoreplyController::class,'deleteSelections'])->name('autoreply.delete.selected');
     Route::delete('/autoreply',[AutoreplyController::class,'destroy'])->name('autoreply.delete');
     Route::delete('/autoreply/all',[AutoreplyController::class,'destroyAll'])->name('deleteAllAutoreply');
     Route::get('/autoreply/show-reply/{id}',[AutoreplyController::class,'show']);
+    Route::get('/autoreply/{type}',[AutoreplyController::class,'getFormByType']);
 
-    Route::post('/contact/add',[ContactController::class,'store'])->name('addcontact');
+    Route::get('/autoreply-history/',[AutoreplyMessageController::class,'index'])->name('autoreply-history');
+    Route::get('/autoreply-history/resend/all',[AutoreplyMessageController::class,'resendAll'])->name('autoreply-history.resend-all');
+    Route::get('/autoreply-history/resend/{id}',[AutoreplyMessageController::class,'resend'])->name('autoreply-history.resend');
+    Route::delete('/autoreply-history/deleteMany',[AutoreplyMessageController::class,'deleteSelections'])->name('autoreply-history.delete.selected');
+    Route::delete('/autoreply-history/deleteAll',[AutoreplyMessageController::class,'destroy'])->name('autoreply-history.delete.all');
+    Route::get('/autoreply-history/refresh',[AutoreplyMessageController::class,'refresh'])->name('autoreply-history.refresh');
+
+    Route::post('/contact/add',[ContactController::class,'store'])->name('contact.store');
+    Route::post('/contact/edit',[ContactController::class,'update'])->name('contact.update');
     Route::post('/contact/export',[ContactController::class,'export'])->name('exportContact');
     Route::delete('/contact/delete_all',[ContactController::class,'DestroyAll'])->name('deleteAll');
+    Route::delete('/contact/deleteMany',[ContactController::class,'deleteSelections'])->name('contacts.delete.selected');
     Route::delete('/contact/delete/{id}',[ContactController::class,'destroy'])->name('contactDeleteOne');
     Route::post('/contact/import',[ContactController::class,'import'])->name('importContacts');
     Route::post('/contact',[ContactController::class,'store'])->name('contact');
     Route::get('/contact/{contacts:tag_id}',[ContactController::class,'index']);
+    Route::get('/contact/import-contacts/{tagId}',[ContactController::class,'fetchContacts'])->name('contact.import.contacts');
 
     Route::post('/tags/livechat/import', [TagController::class, 'livechatImport'])->name('livechatToBook');
     Route::delete('/tags/deleteMany', [TagController::class, 'deleteSelections'])->name('tags.delete.selected');

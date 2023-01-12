@@ -31,6 +31,7 @@ router.post('/backend-send-text', wa.sendText)
 router.post('/backend-getgroups', wa.fetchGroups)
 router.post('/backend-blast', wa.blast)
 router.post('/backend-direct', wa.direct)
+router.post('/backend-contacts', wa.fetchWhatsappContacts)
 
 // STORE
 //router.post('/backend-store-chats', store.chats)
