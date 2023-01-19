@@ -75,8 +75,26 @@
                                     </li>
                                 </ul>
                             </div>
+                            <div class="dropdown">
+                                <a class="btn btn-success btn-sm dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    Export Excel
+                                </a>
+
+                                <ul class="dropdown-menu" aria-labelledby="dropdownMenuLink">
+                                    <li>
+                                        <a class="dropdown-item" href="#" id="export_table_data">
+                                            Table Data
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" data-bs-target="#export_options" data-bs-toggle="modal" href="#" id="export_all_data">
+                                            All with Options
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
                             <a href="{{route('autoreply-history.resend-all')}}" data-stop-propagation class="btn btn-warning btn-sm">
-                                Resend Fails
+                                Resend All
                             </a>
                             @if(Session::has('selectedDevice'))
                                 <form action="{{route('autoreply-history.delete.all')}}" method="POST">
@@ -88,8 +106,7 @@
                         </div>
                     </div>
                     <div class="card-body rounded-lg">
-                        <div class="overflow-auto">
-                            <table id="datatable" class="table table-hover" style="width:100%">
+                        <table id="datatable" class="table table-hover" style="width:100%">
                                 {{-- if exist autoreplies variable foreach, else please select device --}}
 
                                 <thead>
@@ -120,13 +137,7 @@
 
 
                             </table>
-
-                        </div>
                         {{-- pagination custom --}}
-
-                        <div class="d-flex w-100 justify-content-center">
-                            {{$autoreplyMessages->links()}}
-                        </div>
 
                     </div>
                 </div>
@@ -135,6 +146,38 @@
         </div>
 
     </div>
+
+    @component('components.tables.history.export_modal', ['url' => route('autoreply-history.export')])
+
+        <div class="row mb-2 mt-3">
+            <div class="col">
+                <h6>
+                    Status
+                </h6>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col">
+                <div class="form-check form-check-inline">
+                    <input id="message_status1" name="status[]" type="checkbox" class="form-check-input" value="pending">
+                    <label for="message_status1" class="form-check-label">Pending</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input id="message_status2" name="status[]" type="checkbox" class="form-check-input" value="processing">
+                    <label for="message_status2" class="form-check-label">Processing</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input id="message_status3" name="status[]" type="checkbox" class="form-check-input" value="success">
+                    <label for="message_status3" class="form-check-label">Success</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input id="message_status4" name="status[]" type="checkbox" class="form-check-input" value="failed">
+                    <label for="message_status4" class="form-check-label">Failed</label>
+                </div>
+            </div>
+        </div>
+    @endcomponent
     <!-- Modal -->
     <div class="modal fade" id="modalView" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
         <div class="modal-dialog">
@@ -179,12 +222,36 @@
     <script src="{{asset('js/autoreply.js?t='.getLastJSTime())}}"></script>
     <script>
 
+        const selected = {};
+        const selectedGroup = '';
         let isUpdating = false;
         let isUsingCreatedTemplate = false;
         let ids = {{$autoreplyMessages->map(function($m){return $m['id'];})}}
         $('#message_templates').hide();
-        $('#datatable1').DataTable({
-            paging: false,
+        const table = $('#datatable').DataTable({
+            'createdRow': function( row, data, dataIndex ) {
+                $(row).attr('data-id', data.id);
+                if(selected[selectedGroup]?.some(s => `${s}` === `${data.id}`)) {
+                    $(row).addClass('selected');
+                }
+            },
+            "processing": true,
+            "serverSide": true,
+            "ajax":{
+                "url": "{{ route('autoreply-history.datatable') }}",
+                "dataType": "json",
+                "type": "POST",
+                "data":{ _token: "{{csrf_token()}}"}
+            },
+            "columns": [
+                { "data": "target_name" },
+                { "data": "target_number" },
+                { "data": "incoming_message" },
+                { "data": "status" },
+                { "data": "received_at" },
+                { "data": "sent_at" },
+                { "data": "action" },
+            ]
         });
         let multiSelector = new MultiInputCreator({
             inputSelector: '#keyword',
@@ -255,8 +322,7 @@
             mediaCreator.fill(image);
         });
 
-        const selected = {};
-        const selectedGroup = '';
+
         $('table tbody').on('click', 'tr[data-id]', function () {
             const id = $(this).data('id');
             const groupId = $(this).data('groupId') ?? '';
@@ -290,36 +356,48 @@
         });
 
         setInterval(()=>{
-            $.ajax({
-               url: '{{route('autoreply-history.refresh')}}',
-               method: 'GET',
-                success(r){
-                   for(let data of r){
-                       let status = {
-                           success :'success',
-                           failed :'danger',
-                           pending :'warning',
-                           processing :'info'
-                       }[data.status] ?? 'secondary';
-                       if(!document.querySelector(`[data-message-id="${data.id}"]`)){
-                           let el = $(`${data.view}`);
-                           $('#datatable tbody').append(el);
-                       }
-                       $(`[data-message-id="${data.id}"]`).text(data.status).attr('class', `badge badge-${status}`);
-                       if(data.status === 'failed'){
-                          $(`[data-resend-id="${data.id}"]`).removeClass('d-none');
-                       } else {
-                           $(`[data-resend-id="${data.id}"]`).addClass('d-none');
-                       }
-                       $('[data-stop-propagation]').click(function(e){
-                           e.stopPropagation();
-                       });
-                   }
-                },
-                error(e){
-                   console.log(e);
-                }
+            table.search();
+            $('[data-stop-propagation]').click(function(e){
+                e.stopPropagation();
             });
         }, 2000);
+
+        {{--setInterval(()=>{--}}
+        {{--    $.ajax({--}}
+        {{--       url: '{{route('autoreply-history.refresh')}}?page={{request()->get('page', 1)}}',--}}
+        {{--       method: 'GET',--}}
+        {{--        success(r){--}}
+        {{--            // $('tr[data-id]').each(function(e, el){--}}
+        {{--            //     $(el).remove();--}}
+        {{--            // });--}}
+        {{--            for(let data of r.data){--}}
+        {{--               let status = {--}}
+        {{--                   success :'success',--}}
+        {{--                   failed :'danger',--}}
+        {{--                   pending :'warning',--}}
+        {{--                   processing :'info'--}}
+        {{--               }[data.status] ?? 'secondary';--}}
+        {{--               if(!document.querySelector(`[data-message-id="${data.id}"]`)){--}}
+        {{--                   let el = $(`${data.view}`);--}}
+        {{--                   $('#datatable tbody').prepend(el);--}}
+        {{--               }--}}
+        {{--               $(`[data-message-id="${data.id}"]`).text(data.status).attr('class', `badge badge-${status}`);--}}
+        {{--               $(`[data-sent-id="${data.id}"]`).text(data.updated_at);--}}
+        {{--               if(data.status === 'failed'){--}}
+        {{--                  $(`[data-resend-id="${data.id}"]`).removeClass('d-none');--}}
+        {{--               } else {--}}
+        {{--                   $(`[data-resend-id="${data.id}"]`).addClass('d-none');--}}
+        {{--               }--}}
+        {{--               $('[data-stop-propagation]').click(function(e){--}}
+        {{--                   e.stopPropagation();--}}
+        {{--               });--}}
+        {{--               // $('#pagination__container').html(r.links);--}}
+        {{--           }--}}
+        {{--        },--}}
+        {{--        error(e){--}}
+        {{--           console.log(e);--}}
+        {{--        }--}}
+        {{--    });--}}
+        {{--}, 2000);--}}
     </script>
 @endpush

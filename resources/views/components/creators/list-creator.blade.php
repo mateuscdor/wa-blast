@@ -118,13 +118,25 @@
             }
 
             const fill = function(newLists){
-                if(newLists?.items){
-                    lists = newLists.items.map(l => l.id);
+                let items = newLists.items;
+                if(items && Array.isArray(items)){
+                    lists = items.map(l => l.id);
                     updateListItems();
                     $('#template_list_title').val(newLists.title);
                     $('#template_list_header').val(newLists.header);
                     $('#template_list_button_title').val(newLists.button);
                     for(let {id, title, description} of newLists.items){
+                        $(`#template_list_${id}_description`).val(description);
+                        $(`#template_list_${id}_title`).val(title);
+                    }
+                } else if(newLists.sections){
+                    lists = newLists.sections.map((section) => section.rows.map(r => r.rowId)).reduce((p, c) => [...p, ...c], []);
+                    let items = newLists.sections.reduce((p, c) => [...p, ...c.rows], []);
+                    updateListItems();
+                    $('#template_list_title').val(newLists.title);
+                    $('#template_list_header').val(newLists.sections?.[0]?.title);
+                    $('#template_list_button_title').val(newLists.buttonText);
+                    for(let {rowId: id, title, description} of items){
                         $(`#template_list_${id}_description`).val(description);
                         $(`#template_list_${id}_title`).val(title);
                     }

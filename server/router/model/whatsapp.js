@@ -26,6 +26,7 @@ const request = require("request").defaults({ encoding: null });
 const {dbQuery, dbUpdateQuery, toQueryTimestamp, db} = require("../../database");
 const {onConnectionOpen, onConnectionClose, onQRConnection, onConnectionStart} = require("./events");
 const cron = require("node-cron");
+const path = require("path");
 
 const logger = MAIN_LOGGER.child({})
 //  logger.level = 'trace'
@@ -45,7 +46,7 @@ const onMessageUpsert = function({sock, token, io}){
             let ids = event.messages.map(m => m?.key?.id).filter(f => !!f);
             let foundIds = (await dbQuery(`SELECT message_id FROM chats WHERE message_id IN (${db.escape(ids)})`)).map(m => m.message_id);
             for (let message of event.messages.filter(m => !foundIds.includes(m.key.id))) {
-                saveLiveChat(message, sock.get(token)).catch(e=>{log.error(e)});
+                saveLiveChat(message, sock.get(token), token).catch(e=>{log.error(e)});
                 autoReply(message, sock.get(token)).catch(e=>{log.error(e)});
             }
         } catch (e){
@@ -133,7 +134,7 @@ const connectToWhatsApp = async (token, io = null) => {
             patchMessageBeforeSending: (message) => {
                 const requiresPatch = !!(
                     message.buttonsMessage
-                    // || message.templateMessage
+                    || message.templateMessage
                     || message.listMessage
                 );
                 if (requiresPatch) {
@@ -224,7 +225,7 @@ const connectToWhatsApp = async (token, io = null) => {
 
 
         }).catch(e => {
-
+            console.log(e);
         });
         return ({
             status: sock.getInfo(token)?.isOnline,
@@ -248,6 +249,7 @@ async function connectWaBeforeSend(token) {
         let wa = await connectToWhatsApp(token);
         status = wa?.status;
     } catch (e){
+        console.log(e);
     }
 
     return status;
@@ -619,7 +621,10 @@ const init = function () {
     });
 
     dbQuery('SELECT * FROM numbers').then(numbers => {
-        numbers = numbers.filter(n => fs.readdirSync('./credentials/' + formatReceipt(n.body).split('@')[0])?.length);
+        numbers = numbers.filter(n => {
+            let p = path.join(__dirname, '../../../credentials/' + formatReceipt(n.body).split('@')[0]);
+            return fs.existsSync(p)? fs.readdirSync(p)?.length: false
+        });
         for (let {body} of numbers) {
             connectWaBeforeSend(body).then(exists => {
                 log.info(`Status (${body}): ${exists ? 'Connected' : 'Disconnected'}`);

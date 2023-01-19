@@ -62,6 +62,7 @@ Route::middleware(['installed.app','auth'])->group(function (){
     Route::get('/conversation/groups/delete/{id}', [ConversationGroupController::class, 'delete'])->name('deleteLiveChatLabel');
     Route::post('/livechat/move', [ConversationController::class, 'move'])->name('changeGroupLabels');
     Route::post('/livechat/changeLabel', [LiveChatController::class, 'changeLabel'])->name('livechat.change-label');
+    Route::post('/livechat/changeName', [LiveChatController::class, 'changeName'])->name('livechat.change-name');
 
     Route::get('/autoreply',[AutoreplyController::class,'index'])->name('autoreply');
 
@@ -73,11 +74,13 @@ Route::middleware(['installed.app','auth'])->group(function (){
     Route::get('/autoreply/{type}',[AutoreplyController::class,'getFormByType']);
 
     Route::get('/autoreply-history/',[AutoreplyMessageController::class,'index'])->name('autoreply-history');
+    Route::post('/autoreply-history/datatable',[AutoreplyMessageController::class,'ajaxTable'])->name('autoreply-history.datatable');
     Route::get('/autoreply-history/resend/all',[AutoreplyMessageController::class,'resendAll'])->name('autoreply-history.resend-all');
     Route::get('/autoreply-history/resend/{id}',[AutoreplyMessageController::class,'resend'])->name('autoreply-history.resend');
     Route::delete('/autoreply-history/deleteMany',[AutoreplyMessageController::class,'deleteSelections'])->name('autoreply-history.delete.selected');
     Route::delete('/autoreply-history/deleteAll',[AutoreplyMessageController::class,'destroy'])->name('autoreply-history.delete.all');
     Route::get('/autoreply-history/refresh',[AutoreplyMessageController::class,'refresh'])->name('autoreply-history.refresh');
+    Route::post('/autoreply-history/export',[AutoreplyMessageController::class,'export'])->name('autoreply-history.export');
 
     Route::post('/contact/add',[ContactController::class,'store'])->name('contact.store');
     Route::post('/contact/edit',[ContactController::class,'update'])->name('contact.update');
@@ -96,7 +99,8 @@ Route::middleware(['installed.app','auth'])->group(function (){
     Route::post('/tags',[TagController::class,'store'])->name('tag.store');
     Route::delete('/tags',[TagController::class,'destroy'])->name('tag.delete');
     Route::get('/tag/view/{id}',[TagController::class,'view']);
-    Route::post('fetch-groups',[TagController::class ,'fetchGroups'])->name('fetch.groups');
+    Route::post('/fetch-groups',[TagController::class ,'fetchGroups'])->name('fetch.groups');
+    Route::post('/tag/group-fetch',[TagController::class ,'ajaxFetchGroups'])->name('tag.groups.fetch');
 
     Route::get('/templates',[UserTemplateController::class,'index'])->name('template.lists');
     Route::get('/template/create',[UserTemplateController::class,'create'])->name('template.create');
@@ -126,13 +130,13 @@ Route::middleware(['installed.app','auth'])->group(function (){
     Route::get('/blast/histories/{blast:campaign_id}',[BlastController::class,'histories'])->name('blastHistories');
     Route::get('/blast/datatable/{blast:campaign_id}',[BlastController::class,'datatable'])->name('blastDatatable');
 
-    Route::get('/message/test',[MessagesController::class,'index'])->name('messagetest');
-
-    Route::post('/message/test/text',[MessagesController::class,'textMessageTest'])->name('textMessageTest');
-    Route::post('/message/test/image',[MessagesController::class,'imageMessageTest'])->name('imageMessageTest');
-    Route::post('/message/test/button',[MessagesController::class,'buttonMessageTest'])->name('buttonMessageTest');
-    Route::post('/message/test/template',[MessagesController::class,'templateMessageTest'])->name('templateMessageTest');
-    Route::post('/message/test/list',[MessagesController::class,'listMessageTest'])->name('listMessageTest');
+//    Route::get('/message/test',[MessagesController::class,'index'])->name('messagetest');
+//
+//    Route::post('/message/test/text',[MessagesController::class,'textMessageTest'])->name('textMessageTest');
+//    Route::post('/message/test/image',[MessagesController::class,'imageMessageTest'])->name('imageMessageTest');
+//    Route::post('/message/test/button',[MessagesController::class,'buttonMessageTest'])->name('buttonMessageTest');
+//    Route::post('/message/test/template',[MessagesController::class,'templateMessageTest'])->name('templateMessageTest');
+//    Route::post('/message/test/list',[MessagesController::class,'listMessageTest'])->name('listMessageTest');
 
     Route::get('/rest-api',RestapiController::class)->name('rest-api');
 
@@ -161,22 +165,24 @@ Route::middleware(['installed.app','auth'])->group(function (){
     Route::get('admin/user/edit',[AdminController::class,'userEdit'])->name('user.edit')->middleware('admin');
     Route::post('admin/user/update',[AdminController::class,'userUpdate'])->name('user.update')->middleware('admin');
 
+    Route::get('/livechat/notifications', [LiveChatController::class, 'notifications'])->name('livechat.notifications');
+    Route::post('/livechat/table', [LiveChatController::class, 'ajaxTable'])->name('livechat.datatable');
     Route::get('/livechat', [LiveChatController::class, 'index'])->name('livechat.lists');
     Route::get('/livechat/{id}', [LiveChatController::class, 'show'])->name('livechat.view');
     Route::delete('/livechat/delete/{id}', [LiveChatController::class, 'delete'])->name('livechat.delete');
     Route::post('/livechat/switch/{id}', [LiveChatController::class, 'switchChat'])->name('livechat.switch');
     Route::post('/livechat/refresh/{id}', [LiveChatController::class, 'refresh'])->name('livechat.refresh');
     Route::post('/livechat/send-message/{id}', [LiveChatController::class, 'send'])->name('livechat.sendMessage');
+    Route::post('/livechat/export', [LiveChatController::class, 'export'])->name('livechat.export');
 
     Route::post('/logout', LogoutController::class)->name('logout');
 });
-
 Route::middleware('installed.app','guest')->group(function (){
 
     Route::get('/login',[LoginController::class,'index'])->name('login');
-    Route::get('/register',[RegisterController::class,'index'])->name('register');
-    Route::post('/register',[RegisterController::class,'store'])->name('register');
     Route::post('/login',[LoginController::class,'store'])->name('login');
+//    Route::get('/register',[RegisterController::class,'index'])->name('register');
+//    Route::post('/register',[RegisterController::class,'store'])->name('register');
 
 });
 
@@ -184,4 +190,5 @@ Route::get('/install', [SettingController::class,'install'])->name('setting.inst
 Route::post('/install', [SettingController::class,'install'])->name('settings.install_app');
 
 Route::post('/settings/check_database_connection',[SettingController::class,'test_database_connection'])->name('connectDB');
+
 Route::post('/settings/activate_license',[SettingController::class,'activate_license'])->name('activateLicense');

@@ -55,9 +55,9 @@
                 <li class="{{request()->is('campaigns') ? 'active-page' : ''}}">
                     <a href="{{route('campaign.lists')}}" class=""><i class="material-icons-two-tone">history</i>List Campaign</a>
                 </li>
-                <li class="{{request()->is('message/test') ? 'active-page' : ''}}">
-                    <a href="{{route('messagetest')}}" class=""><i class="material-icons-two-tone">note</i>{{__('system.test')}}</a>
-                </li>
+{{--                <li class="{{request()->is('message/test') ? 'active-page' : ''}}">--}}
+{{--                    <a href="{{route('messagetest')}}" class=""><i class="material-icons-two-tone">note</i>{{__('system.test')}}</a>--}}
+{{--                </li>--}}
             @endif
             <li class="{{request()->is('templates') ? 'active-page' : ''}}">
                 <a href="{{route('template.lists')}}" class=""><i class="material-icons-two-tone">extension</i>Message Templates</a>

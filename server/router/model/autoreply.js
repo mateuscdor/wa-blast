@@ -10,6 +10,7 @@ const path = require("path");
 const sizeOf = require('image-size');
 const {dbUpdateQuery} = require("../../database");
 const request = require("request");
+const {convertFileTypes} = require("../helper");
 const gm = require('gm').subClass({ imageMagick: true });
 
 //const { startCon } = require('./WaConnection');
@@ -57,15 +58,16 @@ const autoReply = async (msg, sock) => {
         result = await dbQuery(`SELECT * FROM autoreplies WHERE device = ${sock.user.id.split(':')[0]}`);
         result = result.filter(r => {
             return r.keyword.split('[|]').some(keyword => {
-                console.log(keyword);
-                console.log(command);
                if (r.type_keyword === 'Contain') {
                    return command.trim().toLowerCase().includes(keyword.trim().toLowerCase());
-               } else {
+               } else if(r.type_keyword === 'Equal'){
                    return keyword.trim().toLowerCase() === command.trim().toLowerCase();
+               } else if(r.type_keyword === 'None'){
+                   return true;
                }
            });
         }).filter(r => {
+
             let settings = {};
             let allDays = ['sat', 'sun', 'mon', 'tue', 'wed', 'thu', 'fri'];
             try {
@@ -122,10 +124,18 @@ const autoReply = async (msg, sock) => {
                 return res.reply_when === 'All' ? true : res.reply_when === 'Group' && msg.key.remoteJid.includes('@g.us') ? true : res.reply_when === 'Personal' && !msg.key.remoteJid.includes('@g.us');
             }).map(r => {
                 return {
+                    id: r.id,
                     reply: r.reply,
-                    id: r.id
+                    type_keyword: (!r.keyword.length? 'None': r.type_keyword)
                 };
             })
+        }
+
+        if(replies.length){
+            let some = replies.some(r => r.type_keyword !== 'None');
+            if(some){
+                replies = replies.filter(r => r.type_keyword !== 'None');
+            }
         }
         // replace if exists {name} with sender name in reply
         for(let reply of replies){
@@ -167,16 +177,31 @@ const autoReply = async (msg, sock) => {
             if(reply.buttons && !reply.buttons.length){
                 delete reply.buttons;
             }
+            if(reply.templateButtons && !reply.templateButtons.length){
+                delete reply.templateButtons;
+            }
 
-            await dbQuery(`INSERT INTO autoreply_messages (autoreply_id, replied_to_message_id, status, prepared_message) VALUES ("${raw.id}", "${msg.key.id}", "processing", '${JSON.stringify(reply)}')`);
+            reply = convertFileTypes(reply);
+
+            let receivedAt = parseInt(msg?.messageTimestamp) * 1000;
+            let insertId = '';
+            if(raw.type_keyword !== 'None'){
+                let {insertId: id} = await dbQuery(`INSERT INTO autoreply_messages (autoreply_id, replied_to_message_id, status, prepared_message, created_at, updated_at, received_at) VALUES ("${raw.id}", "${msg.key.id}", "processing", '${JSON.stringify(reply)}', ${db.escape(new Date())}, ${db.escape(new Date())}, ${db.escape(new Date(receivedAt))})`);
+                insertId = id;
+            }
             log.info('Sending Autoreply Message to ' + msg.key.remoteJid?.split(':')[0] + '...');
 
-            sock.sendMessage(msg.key.remoteJid, reply).then(message => {
-                dbUpdateQuery(`UPDATE autoreply_messages SET message_id = "${message.key.id}", status = "success" WHERE autoreply_id = "${raw.id}" AND replied_to_message_id = "${msg.key.id}"`).catch(e=>{
-                    log.error('MySql Error (autoreply updating error)');
-                });
-                let timestamp = parseInt(message?.messageTimestamp) + 2;
+            sock.sendMessage(msg.key.remoteJid, {
+                ...reply,
+                headerType: 4,
+            }, {
+                ...(reply && 'document' in reply? {url: reply.document}: {}),
+                mediaUploadTimeoutMs: 11000
+            }).then(message => {
+                let timestamp = parseInt(message?.messageTimestamp ?? ((new Date()).getTime() / 1000)) + 2;
                 const me = sock.user.id.split(':')[0];
+                let isGroup = msg.key.remoteJid?.includes('@g') ?? msg.key.participant ?? msg.participant;
+
                 setTimeout(async () => {
                     await generateChatQuery({
                         me,
@@ -186,28 +211,62 @@ const autoReply = async (msg, sock) => {
                         senderType: "AUTO_REPLY",
                         status: "PENDING",
                         item: reply,
+                        isGroup: isGroup,
                         timestamp,
                     });
                 }, 3000);
-            }).catch(e => {
-                dbUpdateQuery(`UPDATE autoreply_messages SET status = "failed" WHERE autoreply_id = "${raw.id}" AND replied_to_message_id = "${msg.key.id}"`).catch(e=>{
+                if(raw.type_keyword === 'None') {
+                    return;
+                }
+                dbUpdateQuery(`UPDATE autoreply_messages
+                                   SET sent_at    = ${db.escape(new Date(timestamp * 1000))},
+                                       message_id = "${message.key.id}",
+                                       status     = "success",
+                                       updated_at = ${db.escape(new Date())}
+                                   WHERE autoreply_id = "${raw.id}"
+                                     AND replied_to_message_id = "${msg.key.id}"
+                                     AND id = "${insertId}"`).catch(e => {
                     log.error('MySql Error (autoreply updating error)');
                 });
-                console.error(e);
+
+            }).catch(e => {
                 log.error(`Error sending autoreply message (autoreply_id = ${raw.id})`);
+                log.error(e);
+
+                if(raw.type_keyword === 'None') {
+                    return;
+                }
+                dbUpdateQuery(`UPDATE autoreply_messages
+                                   SET status     = "failed",
+                                       updated_at = ${db.escape(new Date())}
+                                   WHERE autoreply_id = "${raw.id}"
+                                     AND replied_to_message_id = "${msg.key.id}"
+                                     AND id = "${insertId}"`).catch(e => {
+                    log.error('MySql Error (autoreply updating error)');
+                });
+
             });
         }
 
         //return;
 
     } catch (e) {
-        console.log(e);
-        log.error('Auto reply error.');
+        log.error('autoreply error' + JSON.stringify(e));
     }
 }
 
-const saveLiveChat = async function(msg, sock){
+const saveLiveChat = async function(msg, sock, token){
     try {
+
+        let isGroup = msg.key.remoteJid?.includes('@g') ?? msg.key.participant ?? msg.participant;
+
+        if(isGroup){
+            return;
+        }
+        let number = await dbQuery(`SELECT * FROM numbers WHERE live_chat = 1 && body = "${token}"`);
+        if(!number?.length){
+            return;
+        }
 
         let fromMe = msg.key.fromMe;
         let senderType = "RECEIVER";
@@ -227,7 +286,7 @@ const saveLiveChat = async function(msg, sock){
 
         let image;
         //  const urlImage = (type == 'imageMessage') && msg.message.imageMessage.caption ? msg.message.imageMessage.caption : null;
-        if (type === 'imageMessage') {
+        if (type === 'imageMessage' && !fromMe) {
 
             const stream = await downloadContentFromMessage(msg.message.imageMessage, 'image');
             let buffer = Buffer.from([])
@@ -252,8 +311,11 @@ const saveLiveChat = async function(msg, sock){
 
             image = process.env.APP_URL + `/storage/chat-media/${from}/${fileName}`;
         } else {
-            image = null;
-
+            if(fromMe && type === 'imageMessage'){
+                image = null;
+            } else {
+                image = null;
+            }
         }
 
         const me = sock.user.id.split(':')[0];
@@ -268,6 +330,7 @@ const saveLiveChat = async function(msg, sock){
             text: command,
             image,
             timestamp,
+            isGroup: msg.key?.participant,
         });
         // console.log(`Unread messages from ${from} to ${me}`);
 
@@ -276,7 +339,7 @@ const saveLiveChat = async function(msg, sock){
     }
 }
 
-const generateChatQuery = async function({senderName, from, me, senderType, text, item, image, timestamp, messageId, status}){
+const generateChatQuery = async function({senderName, from, me, senderType, text, item, image, timestamp, messageId, status, isGroup}){
 
     if(item){
         text = item.text ?? item.caption ?? '';
@@ -286,16 +349,19 @@ const generateChatQuery = async function({senderName, from, me, senderType, text
     }
     let messageDateTime = (new Date(timestamp * 1000)).toISOString().replace('T', ' ').replace('\.000Z', '');
 
-    const thisNumber = (await dbQuery(`SELECT * FROM numbers WHERE body = "${me}" AND live_chat = 1 LIMIT 1`))[0] ?? null;
+    const thisNumber = (await dbQuery(`SELECT * FROM numbers WHERE body = "${me}" LIMIT 1`))[0] ?? null;
     if(!thisNumber){
         throw "Number " + me + " is not registered as a live chat number";
     }
     let numberId = thisNumber.id;
 
-    let currentConversation = await dbQuery(`SELECT * FROM conversations WHERE target_number = "${from}" AND device_number = "${me}" LIMIT 1`);
-    if(!currentConversation.length){
-        await dbQuery(`INSERT INTO conversations (target_number, number_id, target_name, device_number) VALUES ("${from}", "${numberId}", "${senderName}", "${me}")`);
-        currentConversation = await dbQuery(`SELECT * FROM conversations WHERE target_number = "${from}" AND device_number = "${me}" LIMIT 1`);
+    let [conv] = await dbQuery(`SELECT id FROM conversations WHERE target_number = "${from}" AND device_number = "${me}" LIMIT 1`);
+    let id = conv?.id;
+    if(!id){
+        let {insertId} = await dbQuery(`INSERT INTO conversations (target_number, number_id, target_name, device_number, is_group_chat, created_at, updated_at) VALUES ("${from}", "${numberId}", "${senderName}", "${me}", ${isGroup? 1: 0}, ${db.escape(new Date())}, ${db.escape(new Date())})`);
+        id = insertId;
+    } else {
+        await dbUpdateQuery(`UPDATE conversations SET updated_at = ${db.escape(new Date())} WHERE id = ${id}`)
     }
     let exists = await dbQuery(`SELECT id FROM chats WHERE message_id = "${messageId}"`);
     if(exists.length){
@@ -313,7 +379,7 @@ const generateChatQuery = async function({senderName, from, me, senderType, text
             })}' WHERE message_id = "${messageId}"`)
         }
     } else {
-        await dbQuery(`INSERT INTO chats (conversation_id, number_type, read_status, message, sent_at, message_id) VALUES ("${currentConversation[0].id}", "${senderType}", "UNREAD", '${JSON.stringify({
+        await dbQuery(`INSERT INTO chats (conversation_id, number_type, read_status, message, sent_at, message_id) VALUES ("${id}", "${senderType}", "UNREAD", '${JSON.stringify({
             text,
             ...(image? {image: image}: {}),
             ...item

@@ -54,4 +54,14 @@ function getSystemSettings($name, $default = ''){
     }
     return $default;
 }
-?>
+
+function s_flash($message = 'Not found', $isError = true, $statusCode = 404){
+    session()->flash('alert', [
+       'type' => $isError? 'danger': 'success',
+       'msg' => $message,
+    ]);
+    return response()->json([
+        'success' => !$isError,
+        'message' => $message
+    ], 404);
+}

@@ -107,6 +107,7 @@ class BlastController extends Controller
     }
 
     public function blastProcess(Request $request){
+
         $campaign = $request->user()->campaigns()->whereIn('status', ['waiting', 'processing'])->whereSender($request->sender)->exists();
         if ($campaign) {
             session()->flash('alert', [
@@ -177,7 +178,7 @@ class BlastController extends Controller
                 'name' => $request->name,
                 'tag' => $request->tag,
                 'type' => $messageType,
-                'message' => json_encode($msg),
+                'message' => json_encode(UserTemplate::generateFromMessage(json_decode(json_encode($msg)))),
                 'delay' => $request->delay,
                 'status' => 'finish',
                 'schedule' => $request->start_date ?? now(),

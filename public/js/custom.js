@@ -48,10 +48,12 @@ const MultiInputCreator = function({inputSelector, createdSelector, hiddenSelect
     const fill = function(items){
         selections = [];
         for(let item of items){
-            selections.push({
-                id: item?.id ?? item,
-                text: item?.text ?? item,
-            });
+            if(!!item || !!item.text){
+                selections.push({
+                    id: item?.id ?? item,
+                    text: item?.text ?? item,
+                });
+            }
         }
         update();
     }

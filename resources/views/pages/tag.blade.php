@@ -6,6 +6,49 @@
 
 @push('head')
     <link href="{{asset('plugins/datatables/datatables.min.css')}}" rel="stylesheet">
+    <style>
+        .group__item {
+            background-color: #0AAEB3;
+            padding: 10px;
+            display: flex;
+            justify-content: space-between;
+            cursor: pointer;
+            align-items: center;
+        }
+        .group__item:hover {
+            background-color: #0C9A9A;
+        }
+        .group__item .subject__group {
+            display: flex;
+            flex-grow: 1;
+            flex-direction: column;
+            gap: 2px;
+            -webkit-column-gap: 2px;
+            -moz-column-gap: 2px;
+        }
+        .group__item .subject {
+            color: #ffffff;
+            font-size: 16px;
+            margin-bottom: 0;
+        }
+        .group__item .participants {
+            color: #d8dfec;
+            font-size: 14px;
+            margin-bottom: 0;
+        }
+        .group__item .participant_count {
+            font-size: 14px;
+            color: #ffffff;
+            font-weight: 400;
+            margin-bottom: 0;
+        }
+        .form-check-input[type=checkbox] {
+            margin-top: 0;
+        }
+        .group__item.selected {
+            background-color: #077275;
+        }
+    </style>
 @endpush
 
 @section('content')
@@ -26,7 +69,7 @@
     @endif
     <div class="card-header d-flex justify-content-between">
 
-        <button type="button" class="btn btn-primary " data-bs-toggle="modal" data-bs-target="#selectNomor"><i class="material-icons-outlined">contacts</i>Fetch From Groups WA</button>
+        <button id="btn-fetch-groups" type="button" class="btn btn-primary " data-bs-toggle="modal" data-bs-target="#selectNomor"><i class="material-icons-outlined">contacts</i>Fetch From Groups WA</button>
         <div class="d-flex justify-content-right">
 
             <button type="button" class="btn btn-primary " data-bs-toggle="modal" data-bs-target="#addTag"><i class="material-icons-outlined">add</i>Add</button>
@@ -180,24 +223,26 @@
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="exampleModalLabel">Add Tag</h5>
+                    <h5 class="modal-title" id="exampleModalLabel">Select Groups</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body">
-                    <form action="{{route('fetch.groups')}}" method="POST" enctype="multipart/form-data">
+                <form action="{{route('fetch.groups')}}" method="POST" enctype="multipart/form-data">
+                    <div class="modal-body">
                         @csrf
                         <label for="" class="form-label">Sender</label>
                         @if(Session::has('selectedDevice'))
                             <input type="text" name="sender" class="form-control" id="sender" value="{{Session::get('selectedDevice')}}" readonly>
                         @else
                             <input type="text" name="senderrr" value="Please Select Sender First" class="form-control" id="sender" required>
-                    @endif
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" name="submit" class="btn btn-primary">Fetch</button>
-                    </form>
-                </div>
+                        @endif
+                        <div class="d-flex flex-column mt-2 rounded" style="max-height: 300px; overflow: auto" id="group__container">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" name="submit" class="btn btn-primary">Create</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -210,6 +255,8 @@
     <script>
         let selectedGroup = '';
         let selected = {};
+        let isFetched = false;
+
         $('.nav-link[id^="nav_group"]').click(function(){
             let id = $(this).attr('id').replace('nav_group_', '');
             if(id === 'default'){
@@ -265,6 +312,51 @@
            $('#edit_tag_id').val(tagId);
            $('#edit_tag_label').val(tagLabel);
            $('#edit_modal').modal('show');
+        });
+        $('#btn-fetch-groups').click(function(){
+            if(!isFetched){
+                $.ajax({
+                    url: '{{route('tag.groups.fetch')}}',
+                    method: 'POST',
+                    data: {
+                        _token: '{{csrf_token()}}',
+                        sender: '{{session()->get('selectedDevice')}}'
+                    },
+                    success(r){
+                        if(isFetched){
+                            return;
+                        }
+                        isFetched = true;
+                        for(let {id, subject, participantLength} of r.data){
+                            $('#group__container').append(`<label data-group-id="${id}" class="group__item">
+                                <div class="d-flex align-items-center gap-2 pl-3">
+                                    <input id="group_id_${id}" value="${id}" name="group_ids[]" class="form-check-input" type="checkbox">
+                                    <div class="subject__group">
+                                        <p class="subject">
+                                            ${subject}
+                                        </p>
+                                    </div>
+                                </div>
+                                <p class="participant_count">
+                                    ${participantLength} participants
+                                </p>
+                            </label>`);
+                            $('[type="checkbox"][id^="group_id"]').click(function(e){
+                                let groupId = $(this).attr('id').replace('group_id_', '');
+                                if($(this).prop('checked')){
+                                    $(`[data-group-id="${groupId}"]`).addClass('selected');
+                                } else {
+                                    $(`[data-group-id="${groupId}"]`).removeClass('selected');
+                                }
+                            });
+                        }
+                        console.log(r.data);
+                    },
+                    error(e){
+
+                    }
+                })
+            }
         });
     </script>
 @endpush

@@ -17,6 +17,7 @@ class Conversation extends Model
         'last_user_id',
         'target_number',
         'device_number',
+        'defined_name',
     ];
 
     protected $casts = [
@@ -32,20 +33,26 @@ class Conversation extends Model
     }
 
     public function chats(){
-        return $this->hasMany(Chat::class)->distinct('message_id')->with(['autoreplyMessage', 'user'])->orderBy('sent_at');
+        return $this->hasMany(Chat::class)->distinct('message_id')->with(['autoreplyMessage', 'user'])->orderBy('sent_at')->where('message', '!=', ['text'=>'']);
     }
     public function unreadChats(){
-        return $this->hasMany(Chat::class)->where('read_status', "UNREAD");
+        return $this->hasMany(Chat::class)->where('read_status', "UNREAD")->where('message', '!=', ['text'=>'']);
     }
 
     public function getLatestTimeAttribute(){
-        $item = $this->chats()->whereNotNull('sent_at')->latest('sent_at')->get();
-        return $item[0]->sent_at ?? null;
+        return Carbon::parse($this->updated_at);
     }
 
     public function getOldestTimeAttribute(){
-        $item = $this->chats()->whereNotNull('sent_at')->oldest('sent_at')->get();
-        return $item[0]->sent_at ?? null;
+        $item = $this->chats()->whereNotNull('sent_at')->oldest('sent_at')->first();
+
+        $item = $item->sent_at ?? $this->updated_at ?? '-';
+        $now = new \DateTime("now", new \DateTimeZone( config('app.timezone')));
+
+        if($item && $item !== '-'){
+            return Carbon::make($item)->addSeconds($now->getOffset())->format('Y-m-d H:i:s');
+        }
+        return Carbon::parse($this->updated_at) ?? null;
     }
 
     public function getCanSendMessageAttribute()

@@ -26,6 +26,13 @@ if(!class_exists('SpintaxHelper')){
                 return $contact->raw_values[intval($matches[2]) + 1] ?? '';
             }, $message);
         }
+        public static function generateMessageFormat(string $message){
+            $m = preg_replace('([_]([\w\s?!~]+)[_])', '<i>$1</i>', $message, 1);
+            $m = preg_replace('([*]([\w\s?!~]+)[*])', '<b>$1</b>', $m, 1);
+            $m = preg_replace('([~]([\w\s?!~]+)[~])', '<del>$1</del>', $m, 1);
+            $m = str_replace("\\", "&#92;", $m);
+            return $m;
+        }
 
         public static function generate(string $message, Contact $contact){
             $msg = self::generateName($message, $contact);

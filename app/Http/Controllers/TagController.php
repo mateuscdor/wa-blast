@@ -56,45 +56,85 @@ class TagController extends Controller
         ]);
     }
 
+    public function ajaxFetchGroups(Request $request){
+        $number = Number::whereBody($request->sender)->whereUserId(Auth::id())->first();
+        if(!$number){
+            return s_flash('Number not found');
+        }
+        if($number->status !== Number::STATUS_CONNECTED){
+            return s_flash('Number is not connected');
+        }
+        try {
+            $fetch = Http::withOptions(['verify' => false])->asForm()->post(env('WA_URL_SERVER').'/backend-get-groups-info',
+                ['token' => $request->sender]
+            );
+            $respon = json_decode($fetch->body());
+            if($respon->status === false){
+                return s_flash($respon->message);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $respon->data,
+            ]);
+        } catch (\Exception $e){
+            return s_flash('Server Error');
+        }
+    }
+
     public function fetchGroups(Request $request){
-       try {
-        $number = Number::whereBody($request->sender)->first();
-        if($number->status != 'Connected'){
+
+        $request->validate([
+            'group_ids' => 'required|array',
+            'group_ids.*' => 'string'
+        ]);
+
+        try {
+            $number = Number::whereBody($request->sender)->whereUserId(Auth::id())->first();
+            if(!$number){
+                return back()->with('alert', [
+                    'type' => 'danger',
+                    'msg' => 'Number Not found'
+                ]);
+            }
+            if($number->status != 'Connected'){
                 return back()->with('alert', [
                     'type' => 'danger',
                     'msg' => 'Your sender is not connected!'
                 ]);
             }
-           $fetch =Http::withOptions(['verify' => false])->asForm()->post(env('WA_URL_SERVER').'/backend-getgroups',['token' => $request->sender]);
-          $respon = json_decode($fetch->body());
+            $fetch = Http::withOptions(['verify' => false])->asForm()->post(env('WA_URL_SERVER').'/backend-getgroups',['token' => $request->sender]);
+            $respon = json_decode($fetch->body());
+            $groupIds = $request->post('group_ids');
 
-       if($respon->status === false){
-        return back()->with('alert',[
-            'type' => 'danger',
-            'msg' => $respon->message
-        ]);
-       }
-                foreach ($respon->data as $group) {
-                    $tag = Tag::firstOrCreate(['user_id'=> Auth::user()->id,'name' => $group->subject .'( '.$group->id.' )']);
-                    
-                   foreach ($group->participants as $member) {
-                      $number = str_replace('@s.whatsapp.net','',$member->id);
-                      $cek = Number::whereId(Auth::user()->id)->whereBody($number)->count();
-                     if($cek < 1){
-
-                          $tag->contacts()->create(['user_id' => Auth::user()->id,'name' => $number,'number' => $number]);
-                     }
-
-                   }
-                }
+            if($respon->status === false){
                 return back()->with('alert',[
-                    'type' => 'success',
-                    'msg' => 'Generate success'
+                    'type' => 'danger',
+                    'msg' => $respon->message
                 ]);
-         
-       } catch (\Throwable $th) {
+            }
+            foreach ($respon->data as $group) {
+                if(in_array($group->id, $groupIds)){
+                    $tag = Tag::firstOrCreate(['user_id'=> Auth::user()->id, 'name' => $group->subject .' ( '.$group->id.' )']);
+
+                    foreach ($group->participants as $member) {
+                        $number = str_replace('@s.whatsapp.net','',$member->id);
+                        $cek = Number::whereId(Auth::user()->id)->whereBody($number)->count();
+                        if($cek < 1){
+
+                            $tag->contacts()->create(['user_id' => Auth::user()->id,'name' => $number,'number' => $number]);
+                        }
+                    }
+                }
+            }
+            return back()->with('alert',[
+                'type' => 'success',
+                'msg' => 'Generate success'
+            ]);
+
+        } catch (\Throwable $th) {
             throw $th;
-       }
+        }
     }
 
 
@@ -117,13 +157,13 @@ class TagController extends Controller
         $userHasAccess = !Tag::with('user')->whereIn('id', $request->id)->where('user_id', '!=', Auth::id())->count();
         if(!$userHasAccess){
             return redirect()->back()->with('alert', [
-               'type' => 'danger',
-               'msg' => 'You don\'t have access to delete a tag or many tags of the selected items',
+                'type' => 'danger',
+                'msg' => 'You don\'t have access to delete a tag or many tags of the selected items',
             ]);
         }
         Tag::with('contacts')->whereIn('id', $request->id)->each(function($item){
-           $item->contacts()->delete();
-           $item->delete();
+            $item->contacts()->delete();
+            $item->delete();
         });
         return redirect()->back()->with('alert', [
             'type' => 'danger',

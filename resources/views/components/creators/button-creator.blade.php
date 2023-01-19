@@ -149,6 +149,13 @@
 
             const fill = function(items){
                 buttons = items;
+                $('#template_button_container').html('');
+                for(let button of buttons){
+                    createButton(button.id, button);
+                }
+                if(buttons.length >= 3){
+                    $('#template_button_create').addClass('d-none');
+                }
             }
 
             const getButtons = () => buttons;

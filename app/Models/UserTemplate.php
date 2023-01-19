@@ -58,7 +58,7 @@ class UserTemplate extends Model
                 }
                 $arr = explode('.', $obj->image);
                 $ext = end($arr);
-                $allowext = ['jpg', 'png', 'jpeg'];
+                $allowext = ['jpg', 'png', 'jpeg', 'ogg', 'mp3', 'mp4', 'xls', 'xlsx', 'pdf', 'txt', 'doc', 'docx', 'zip', 'json', 'webp'];
                 if (!in_array($ext, $allowext)) {
                     session()->flash('alert', [
                         'type' => 'danger',
@@ -67,18 +67,18 @@ class UserTemplate extends Model
                     return false;
                 }
                 $buttons = collect($obj->buttons ?? [])->map(function($item, $index){
+                    $typePurpose = $item->type === 'url' ? 'url' : ($item->type === 'phone'? 'phoneNumber': 'id');
+                    $type = $item->type === 'url' ? 'urlButton' : ($item->type === 'phone'? 'callButton': 'quickReplyButton');
+
                     return [
-                        'buttonId' => $item->id,
-                        'buttonText' => [
-                            'displayText' => $item->label,
-                        ],
-                        'type' => 1,
+                        'index' => $index,
+                        $type => ['displayText' => $item->label, $typePurpose => $typePurpose === 'id'? $item->id: $item->text],
                     ];
                 });
                 $msg = [
                     'image' => ['url' => $obj->image],
                     'caption' => $obj->message ?? '',
-                    'buttons' => $buttons,
+                    'templateButtons' => $buttons,
                 ];
                 break;
             case 'button':
@@ -108,7 +108,7 @@ class UserTemplate extends Model
                 $buttonMessage = [
                     'text' => $obj->message,
                     'footer' => $obj->footer ?? '',
-                    'buttons' => $buttons,
+                    'templateButtons' => $buttons,
                     'headerType' => 1,
                 ];
 
@@ -150,7 +150,6 @@ class UserTemplate extends Model
                         'text' => $obj->message,
                         'footer' => $obj->footer ?? '',
                         'templateButtons' => $templateButtons,
-                        'viewOnce' => true,
                     ];
                     //add image to templateMessage if exists
                     if ($obj->image) {
@@ -173,7 +172,7 @@ class UserTemplate extends Model
 
                 break;
             case 'list':
-                if (!$obj->list || !count($obj->list->items)) {
+                if (!$obj->list || !(isset($obj->list->items) && count($obj->list->items))) {
                     session()->flash('alert', [
                         'type' => 'danger',
                         'msg' => 'Please select a list minimum 1!',

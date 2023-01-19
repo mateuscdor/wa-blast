@@ -127,6 +127,27 @@ const fetchGroups = async (req, res) => {
 
 }
 
+const fetchGroupInfo = async function (req, res) {
+
+    const {token} = req.body
+
+    if (token) {
+        await wa.connectWaBeforeSend(token);
+        let fetchGroups = await wa.fetchGroups(token);
+        fetchGroups = fetchGroups.map(group => ({
+            id: group.id,
+            subject: group.subject,
+            creation: group.creation,
+            participantLength: group.participants.length,
+            topParticipants: group.participants.slice(0, 3),
+        }));
+        if (fetchGroups) return res.send({status: true, data: fetchGroups})
+        return res.send({status: false, message: 'Check your connection'})
+    }
+    res.send({status: false, message: 'Check your parameter'})
+
+}
+
 const blast = async (req, res) => {
     const dat = req.body.data;
 
@@ -276,6 +297,7 @@ module.exports = {
     sendListMessage,
     deleteCredentials,
     fetchGroups,
+    fetchGroupInfo,
     blast,
     direct,
     fetchWhatsappContacts,

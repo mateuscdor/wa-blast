@@ -26,7 +26,8 @@
                   @slot('msg',session('alert')['msg'])
               </x-alert>
            @endif
-            <p class="auth-description">Not have an account? ? <a href="register">Register</a></p>
+{{--            <p class="auth-description">Not have an account? ? <a href="register">Register</a></p>--}}
+            <span class="divider"></span>
             <form action="{{route('login')}}" method="POST">
                 @csrf
                 <div class="auth-credentials m-b-xxl">

@@ -33,14 +33,6 @@
     </style>
 @endpush
 
-<div id="spintax" class="row mt-2">
-    <div class="col">
-        <button data-dismiss="modal" class="btn btn-sm btn-info" type="button" id="spintax_base_button" data-bs-target="#modal-spintax" data-bs-toggle="modal">
-            Spintax Settings
-        </button>
-    </div>
-</div>
-
 @push('footer')
     <div class="modal fade" id="modal-spintax">
         <div class="modal-dialog">
@@ -65,7 +57,6 @@
                             <div class="tab-pane fade" id="spintaxList" role="tabpanel" aria-labelledby="pills-spintax-list">
                                 <div>
                                     <div id="spintax_list" class="d-flex flex-column gap-2">
-
                                     </div>
                                 </div>
                                 <div class="d-flex gap-2 justify-content-end mt-4">

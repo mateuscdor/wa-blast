@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\LiveChatExport;
 use App\Models\Chat;
 use App\Models\Conversation;
 use App\Models\ConversationGroup;
@@ -10,11 +11,13 @@ use App\Models\Level;
 use App\Models\Number;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -48,7 +51,8 @@ class LiveChatController extends Controller
                     return $q->where('id', Auth::user()->id)->orWhereHas('createdUsers', function($q){
                         $q->where('id', Auth::user()->id);
                     });
-                });
+                })->where('is_group_chat', false);
+                $q->whereLiveChat(1);
             })->get()->sortByDesc('latest_time')->groupBy('group_id'),
             'groups' => $groups,
             'device' => $device,
@@ -72,12 +76,103 @@ class LiveChatController extends Controller
         ]);
     }
 
+    public function changeName(Request $request){
+        $conversationId = $request->post('id');
+        $conv = Conversation::find($conversationId);
+        if(!$conv->has_access){
+            throw new NotFoundHttpException();
+        }
+
+        $conv->target_name = $request->post('target_name');
+        $conv->save();
+
+        return redirect()->back()->with('alert', [
+            'type' => 'success',
+            'msg' => 'Conversation Name has been changed'
+        ]);
+    }
+
+    public function getLiveChatQuery($groupId){
+        return Conversation::with('unreadChats')->withCount('unreadChats')->whereHas('number', function($q){
+            $q->whereHas('user', function($q){
+                return $q->where('id', Auth::user()->id)->orWhereHas('createdUsers', function($q){
+                    $q->where('id', Auth::user()->id);
+                });
+            });
+            $q->whereLiveChat(1);
+        })
+            ->where('group_id', $groupId)
+            ->orderBy('updated_at', 'desc')
+            ->where('is_group_chat', false);
+    }
+
+    public function ajaxTable(Request $request){
+        $columns = [
+            0 =>'defined_name',
+            1 =>'target_name',
+            2=> 'target_number',
+            3=> 'unreads',
+            4=> 'time_range',
+            5=> 'action',
+        ];
+        $limit = $request->input('length');
+        $start = $request->input('start');
+        $order = $columns[$request->input('order.0.column')];
+        $dir = $request->input('order.0.dir');
+        $group = $request->input('groupId');
+
+        $totalData = $this->getLiveChatQuery($group)->count();
+        $totalFiltered = $totalData;
+
+        if(empty($request->input('search.value')))
+        {
+            $conversations = $this->getLiveChatQuery($group)
+                ->offset($start)
+                ->limit($limit);
+        } else {
+            $search = $request->input('search.value');
+            $conversations = $this->getLiveChatQuery($group)
+                ->offset($start)
+                ->limit($limit);
+
+            $totalFiltered = $conversations->count();
+        }
+
+        $conversations = $conversations->get();
+        $data = array();
+        if(!empty($conversations))
+        {
+            foreach ($conversations as $conversation)
+            {
+                $nestedData = [
+                    'defined_name' => view('components.tables.live-chat.defined_label', ['conversation' => $conversation])->render(),
+                    'target_name' => view('components.tables.live-chat.target_name', ['conversation' => $conversation])->render(),
+                    'target_number' => view('components.tables.live-chat.target_number', ['conversation' => $conversation])->render(),
+                    'unreads' => view('components.tables.live-chat.unreads', ['conversation' => $conversation])->render(),
+                    'time_range' => view('components.tables.live-chat.time_range', ['conversation' => $conversation])->render(),
+                    'action' => view('components.tables.live-chat.actions', ['conversation' => $conversation])->render(),
+                    'id' => $conversation->id,
+                    'group_id' => $conversation->group_id,
+                ];
+                $data[] = $nestedData;
+            }
+        }
+
+        return response()->json(array(
+            "draw"            => intval($request->input('draw')),
+            "recordsTotal"    => intval($totalData),
+            "recordsFiltered" => intval($totalFiltered),
+            "data"            => $data
+        ));
+
+    }
+
     public function show($id){
         $user = Auth::user();
         $conversation = Conversation::with(['chats' => function($q){
             $q->whereIn('read_status', ['READ', 'UNREAD', 'DELIVERED']);
-        }])->find($id);
-        if(!$conversation->has_access){
+        }])->where('is_group_chat', false)->find($id);
+        if(!$conversation || !$conversation->has_access){
             throw new NotFoundHttpException();
         }
 
@@ -311,6 +406,101 @@ class LiveChatController extends Controller
         return redirect()->back()->with('alert', [
             'type' => 'success',
             'msg' => 'Your conversation has been switched.',
+        ]);
+    }
+
+    public function export(Request $request){
+        $startTime = $request->post('start_time');
+        $endTime = $request->post('end_time');
+        $request->validate([
+            'start_time' => 'nullable|date',
+            'end_time' => 'nullable|date' . ($startTime ? '|after:start_time': ''),
+            'options' => 'array',
+            'options.*' => 'in:autoreplies,external_replies,current_user',
+        ]);
+        $options = $request->post('options', []);
+
+        $conversations = Conversation::with(['chats' => function($q) use ($endTime, $startTime, $options) {
+            if(!in_array('autoreplies', $options)){
+                $q = $q->doesntHave('replierMessage')->doesntHave('autoreplyMessage')->where('number_type', '!=', 'AUTO_REPLY');
+            }
+            if(!in_array('external_replies', $options)){
+                $q = $q->where(function($q){
+                    $q->whereNotNull('user_id')->where('number_type', '=', 'SENDER');
+                })->orWhere('number_type', '!=', 'SENDER');
+            }
+            if(in_array('current_user', $options)){
+                $q = $q->where([
+                    'user_id' => null,
+                ])->orWhere([
+                    'user_id' => Auth::id(),
+                ]);
+            }
+            if($startTime || $endTime){
+                if($startTime && $endTime){
+                    $q->where('sent_at', '>=', Carbon::make($startTime))->where('sent_at', '<=', Carbon::make($endTime));
+                } else if($startTime){
+                    $q->where('sent_at', '>=', Carbon::make($startTime));
+                } else {
+                    $q->where('sent_at', '<=', Carbon::make($endTime));
+                }
+            }
+            $q->where('message', '!=', ['text'=>'']);
+            $q->where('message', '!=', json_encode(['text'=>'']));
+            $q->with('user');
+        }])->where(function(Builder $q){
+            $q->whereHas('chats');
+        })->whereHas('number', function($q){
+            $q->whereHas('user', function($q){
+                return $q->where('id', Auth::user()->id)->orWhereHas('createdUsers', function($q){
+                    $q->where('id', Auth::user()->id);
+                });
+            })->whereLiveChat(1);
+        })->get()->sortByDesc('latest_time');
+
+        $date = Carbon::now()->format('Y-m-d_H_s_i');
+        return Excel::download(new LiveChatExport($conversations), session()->get('selectedDevice') . '_' . $date . '_livechat_export_.xlsx', \Maatwebsite\Excel\Excel::XLSX);
+    }
+
+    public function notifications(){
+
+        if(!Auth::user()->hasLiveChat){
+            return response()->json([
+                'popups' => 0,
+                'unreads' => 0,
+            ]);
+        }
+
+        $conversations = Conversation::with('unreadChats')->whereHas('number', function($q){
+            $q->whereHas('user', function($q){
+                return $q->where('id', Auth::user()->id)->orWhereHas('createdUsers', function($q){
+                    $q->where('id', Auth::user()->id);
+                });
+            })->whereLiveChat(1);
+        })->get();
+
+        $needsPopup = $conversations->map(function($conversation){
+            return $conversation->chats()->whereReadStatus('UNREAD')->whereNumberType('RECEIVER')->where('sent_at', '>=', Carbon::now()->setTimezone('UTC')->subMinutes(2)->toDateTimeString())->count();
+        })->sum();
+        $unreadChats = $conversations->map(function($conversation){
+            return $conversation->chats()->whereReadStatus('UNREAD')->whereNumberType('RECEIVER')->count();
+        })->sum();
+        $lastChatId = $conversations->map(function($conversation){
+            $first = $conversation->unreadChats->sortByDesc('sent_at')->first();
+            return $first->id ?? 0;
+        })->max();
+        $lastMessageId = session()->get('last-message-id');
+        $needsSound = false;
+        if(!$lastMessageId || $lastChatId !== $lastMessageId){
+            session()->put('last-message-id', $lastChatId);
+            $needsSound = true;
+        }
+
+
+        return response()->json([
+           'popups' => $needsPopup,
+           'unreads' => $unreadChats,
+            'needsSound' => $needsSound,
         ]);
     }
 }

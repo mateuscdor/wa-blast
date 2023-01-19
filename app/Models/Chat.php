@@ -22,7 +22,6 @@ class Chat extends Model
 
     protected $casts = [
         'message' => MessageCast::class,
-        'sent_at' => 'datetime',
     ];
 
     public function user(){
@@ -30,7 +29,11 @@ class Chat extends Model
     }
 
     public function autoreplyMessage(){
-        return $this->belongsTo(AutoreplyMessages::class, 'message_id', 'message_id');
+        return $this->hasOne(AutoreplyMessages::class, 'message_id', 'message_id');
+    }
+
+    public function replierMessage(){
+        return $this->hasOne(AutoreplyMessages::class, 'replied_to_message_id', 'message_id');
     }
 
     public function conversation(){
@@ -38,6 +41,6 @@ class Chat extends Model
     }
 
     public function getIsAutoReplyAttribute(){
-        return (bool)$this->autoreplyMessage;
+        return (bool)$this->autoreplyMessage || $this->number_type === 'AUTO_REPLY';
     }
 }

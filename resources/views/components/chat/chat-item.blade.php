@@ -17,7 +17,7 @@
     @endisset
     @isset($chat->message['text'])
         <div class="chat_content">
-            {{$chat->message['text']}}
+            {{SpintaxHelper::generateMessageFormat($chat->message['text'])}}
         </div>
     @endisset
     @if($chat->is_autoreply)

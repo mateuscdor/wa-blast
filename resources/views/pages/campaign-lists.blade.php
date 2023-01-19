@@ -7,6 +7,34 @@
 @push('head')
     <link href="{{asset('plugins/datatables/datatables.min.css')}}" rel="stylesheet">
     <link href="{{asset('css/custom.css')}}" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/material-design-iconic-font/2.2.0/css/material-design-iconic-font.min.css" integrity="sha512-rRQtF4V2wtAvXsou4iUAs2kXHi3Lj9NE7xJR77DE7GHsxgY9RTWy93dzMXgDIG8ToiRTD45VsDNdTiUagOFeZA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
+        .modal { overflow: auto !important; }
+        .showReply {
+            padding-left: 0!important;
+            padding-right: 0!important;
+        }
+        .showReply .conversation-compose {
+            height: 56px;
+            padding-bottom: 8px;
+        }
+        .showReply .page {
+            width: 100% !important;
+            align-items: normal;
+        }
+        .btn_type {
+            padding: 5px 10px;
+            border: 0;
+            color: #5454ff;
+            font-weight: 600;
+            font-size: 11px !important;
+            background-color: #e5ffdc;
+            cursor: pointer;
+        }
+        .btn_type:hover {
+            background-color: #0AAEB3;
+        }
+    </style>
 @endpush
 
 @section('content')

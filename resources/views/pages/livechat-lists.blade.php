@@ -88,9 +88,24 @@
                                         </ul>
                                     </div>
 
-                                    <button id="btn_export" class="btn btn-primary btn-sm h-auto ml-auto" type="button">
-                                        Export
-                                    </button>
+                                    <div class="dropdown">
+                                        <a class="btn btn-success btn-sm dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                            Export Excel
+                                        </a>
+
+                                        <ul class="dropdown-menu" aria-labelledby="dropdownMenuLink">
+                                            <li>
+                                                <a class="dropdown-item" href="#" id="export_table_data">
+                                                    Table Data
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" data-bs-target="#export_options" data-bs-toggle="modal" href="#" id="export_all_data">
+                                                    All with Options
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
                                     <button id="btn_create_label" class="btn btn-primary btn-sm h-auto ml-auto" type="button">
                                         Create Group
                                     </button>
@@ -114,7 +129,7 @@
                             <div class="tab-content" id="myTabContent">
                                 @foreach($groups as $index => $group)
                                     <div class="tab-pane fade" id="tab_{{$group->id}}" role="tabpanel" aria-labelledby="nav_group_{{$group->id}}">
-                                        <table class="display" style="width: 100%">
+                                        <table id="datatable_{{$group->id}}" class="display" style="width: 100%">
                                             <thead>
                                             <tr>
                                                 <th>
@@ -139,52 +154,8 @@
                                             </thead>
                                             <tbody>
                                             @foreach(($conversations[$group->id] ?? []) as $conversation)
-                                                <tr data-id="{{$conversation->id}}" data-group-id="{{$group->id}}">
-                                                    <td>
-                                                        <div class="d-flex gap-2">
-                                                            {{$conversation->defined_name ?: "-"}}
-                                                            <button data-before="{{$conversation->defined_name}}" data-edit-id="{{$conversation->id}}" data-toggle="edit" class="btn btn-warning btn-sm">
-                                                                Edit
-                                                            </button>
-                                                        </div>
-                                                    </td>
-                                                    <td>
-                                                        <div class="d-flex gap-2">
-                                                            {{$conversation->target_name ?: "-"}}
-                                                        </div>
-                                                    </td>
-                                                    <td>
-                                                        {{$conversation->target_number}}
-                                                    </td>
-                                                    <td>
-                                                        {{$conversation->unread_chats_count}}
-                                                    </td>
-                                                    <td
-                                                            data-from-time="{{$conversation->oldest_time}}"
-                                                            data-to-time="{{$conversation->latest_time}}"
-                                                    >
-                                                    <span data-from-id="{{$conversation->id}}" class="badge badge-warning">
-                                                        {{$conversation->oldest_time}}
-                                                    </span>
-                                                        <span data-to-id="{{$conversation->id}}" class="badge badge-primary">
-                                                        {{$conversation->latest_time}}
-                                                    </span>
-                                                    </td>
-                                                    <td>
-                                                        <div class="d-flex gap-2">
-                                                            <a href="{{route('livechat.view', $conversation->id)}}" class="btn btn-primary btn-sm">
-                                                                View
-                                                            </a>
-
-                                                            <form action="{{route('livechat.delete', $conversation->id)}}" method="POST" onsubmit="return confirm('Are you sure will delete this conversation?')">
-                                                                @csrf
-                                                                @method('DELETE')
-                                                                <input type="hidden" name="id" value="{{$conversation->id}}">
-                                                                <button type="submit" class="btn btn-danger btn-sm">Delete</button>
-                                                            </form>
-                                                        </div>
-                                                    </td>
-                                                </tr>
+                                                @component('components.tables.livechat-table-row', ['conversation' => $conversation])
+                                                @endcomponent
                                             @endforeach
                                             </tbody>
                                             <tfoot></tfoot>
@@ -192,7 +163,7 @@
                                     </div>
                                 @endforeach
                                 <div class="tab-pane fade show active" id="tab_default" role="tabpanel" aria-labelledby="nav_group_default">
-                                    <table class="display" style="width: 100%">
+                                    <table class="display" id="datatable_" style="width: 100%">
                                         <thead>
                                         <tr>
                                             <th>
@@ -217,51 +188,8 @@
                                         </thead>
                                         <tbody>
                                         @foreach($conversations[''] ?? [] as $conversation)
-                                            <tr data-id="{{$conversation->id}}" data-group-id="">
-                                                <td>
-                                                    <div class="d-flex gap-2">
-                                                        {{$conversation->defined_name ?: "-"}}
-                                                        <button data-before="{{$conversation->defined_name}}" data-edit-id="{{$conversation->id}}" data-toggle="edit" class="btn btn-warning btn-sm">
-                                                            Edit
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    <div class="d-flex gap-2">
-                                                        {{$conversation->target_name ?: "-"}}
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    {{$conversation->target_number}}
-                                                </td>
-                                                <td>
-                                                    {{$conversation->unread_chats_count}}
-                                                </td>
-                                                <td
-                                                        data-from-time="{{$conversation->oldest_time}}"
-                                                        data-to-time="{{$conversation->latest_time}}"
-                                                >
-                                                    <span data-from-id="{{$conversation->id}}" class="badge badge-warning">
-                                                        {{$conversation->oldest_time}}
-                                                    </span>
-                                                    <span data-to-id="{{$conversation->id}}" class="badge badge-primary">
-                                                        {{$conversation->latest_time}}
-                                                    </span>
-                                                </td>
-                                                <td>
-                                                    <div class="d-flex gap-2">
-                                                        <a href="{{route('livechat.view', $conversation->id)}}" class="btn btn-primary btn-sm">
-                                                            View
-                                                        </a>
-                                                        <form action="{{route('livechat.delete', $conversation->id)}}" method="POST" onsubmit="return confirm('Are you sure will delete this conversation?')">
-                                                            @csrf
-                                                            @method('DELETE')
-                                                            <input type="hidden" name="id" value="{{$conversation->id}}">
-                                                            <button type="submit" class="btn btn-danger btn-sm">Delete</button>
-                                                        </form>
-                                                    </div>
-                                                </td>
-                                            </tr>
+                                            @component('components.tables.livechat-table-row', ['conversation' => $conversation])
+                                            @endcomponent
                                         @endforeach
                                         </tbody>
                                         <tfoot></tfoot>
@@ -285,6 +213,32 @@
             </div>
         </div>
     </div>
+    @component('components.tables.history.export_modal', ['url' => route('livechat.export')])
+        <div class="row mb-2 mt-3">
+            <div class="col">
+                <h6>
+                    Options
+                </h6>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col">
+                <div class="form-check form-check-inline">
+                    <input id="include_autoreplies" name="options[]" checked type="checkbox" class="form-check-input" value="autoreplies">
+                    <label for="include_autoreplies" class="form-check-label">Autoreplies</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input id="external_replies" name="options[]" type="checkbox" checked class="form-check-input" value="external_replies">
+                    <label for="external_replies" class="form-check-label">External replies</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input id="current_user" name="options[]" checked type="checkbox" class="form-check-input" value="current_user">
+                    <label for="current_user" class="form-check-label">Current User Only</label>
+                </div>
+            </div>
+        </div>
+    @endcomponent
     @if($device)
         <div class="modal fade" id="switch-modal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered">
@@ -457,19 +411,44 @@
             </div>
         </div>
     </div>
+
+    <div class="modal fade" id="modal-contact-name" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="group_modal_title">
+                        Change Contact Name
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form method="POST" id="label_form" action="{{route('livechat.change-name')}}">
+                    <div class="modal-body">
+                        @csrf
+                        <div id="selected_conversations">
+                        </div>
+                        <label for="contact_name" class="form-label mt-2">New Contact Name</label>
+                        <input class="form-control" id="contact_name" name="target_name" value="">
+                        <input name="id" id="contact_id" type="hidden">
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" id="button_button" name="submit" class="btn btn-primary">Submit</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
 @endsection
 
 @push('scripts')
+    <script src="{{asset('plugins/datatables/datatables.min.js')}}"></script>
     <script>
-        $('[data-toggle="edit"]').click(function(){
-            let id = $(this).data('editId');
-            let labelBefore = $(this).data('before');
-            $('#defined_name').val(labelBefore);
-            $("#defined_id").val(id);
-            $('#modal-label').modal('show');
-        });
-    </script>
-    <script>
+        let initTableAfterRender = function(){
+            $('[data-stop-propagation]').click(function(e){
+                e.stopPropagation();
+            })
+        }
         $('#btn_create_label').click(function(){
             $('#group_id').val('');
             $('#group_label').val('');
@@ -490,14 +469,39 @@
             $('#deletion_group_id').attr('href', '{{url('/conversation/groups/delete/')}}/' + groupId);
             $('#label-modal').modal('show');
         })
-    </script>
-    <script src="{{asset('plugins/datatables/datatables.min.js')}}"></script>
-    <script>
         let selected = {};
-        let selectedGroup = '{{(isset($groups[0])? $groups[0]->id: '')}}';
-        $(document).ready(function(){
-            let table = $('table.display').DataTable();
-        });
+        let selectedGroup = '';
+        let tables = $('[id^=datatable_]').map(function(index, item){
+            return $(item).DataTable({
+                'createdRow': function( row, data, dataIndex ) {
+                    $(row).attr('data-id', data.id);
+                    $(row).attr('data-group-id', data.group_id ?? '');
+                    if(selected[selectedGroup]?.some(s => `${s}` === `${data.id}`)) {
+                        $(row).addClass('selected');
+                    }
+                    initTableAfterRender();
+                },
+                "serverSide": true,
+                "ajax":{
+                    "url": "{{ route('livechat.datatable') }}",
+                    "dataType": "json",
+                    "type": "POST",
+                    "data":{ _token: "{{csrf_token()}}", groupId: $(item).attr('id').replace('datatable_', '')},
+                    error: function (jqXHR, textStatus, errorThrown) {
+                        console.log('');
+                    }
+                },
+                "columns": [
+                    { "data": "defined_name" },
+                    { "data": "target_name" },
+                    { "data": "target_number" },
+                    { "data": "unreads" },
+                    { "data": "time_range" },
+                    { "data": "action" },
+                ],
+            });
+        })
+
         $('.nav-link[id^="nav_group"]').click(function(){
             let id = $(this).attr('id').replace('nav_group_', '');
             if(id === 'default'){
@@ -511,6 +515,20 @@
             } else {
                 $('#dropdown_actions').removeClass('d-none');
             }
+        });
+        $('table tbody').on('click', '[data-toggle="edit"][data-defined-label]', function(){
+            let id = $(this).data('editId');
+            let labelBefore = $(this).data('before');
+            $('#defined_name').val(labelBefore);
+            $("#defined_id").val(id);
+            $('#modal-label').modal('show');
+        });
+        $('table tbody').on('click', '[data-toggle="edit"][data-contact-name]', function(){
+            let id = $(this).data('editId');
+            let labelBefore = $(this).data('before');
+            $('#contact_name').val(labelBefore);
+            $("#contact_id").val(id);
+            $('#modal-contact-name').modal('show');
         });
         $('table tbody').on('click', 'tr[data-id]', function () {
             const id = $(this).data('id');
@@ -558,32 +576,39 @@
     </script>
     <script>
         $(document).ready(function(){
-           $('[data-from-time][data-to-time]').each(function(){
-               let fromId = $(this).find('[data-from-id]');
-               let toId = $(this).find('[data-to-id]');
-               let fromTime = $(this).data('fromTime');
-               let toTime = $(this).data('toTime');
-               let dater = function(date){
-                   date = new Date(date);
-                   if(isNaN(date)){
-                       return '-';
-                   }
-                   let timestamp = date.getTime();
-                   timestamp -= date.getTimezoneOffset() * 60000;
-                   date = new Date(timestamp);
-                   let hours = date.getHours().toString().padStart(2, '0');
-                   let minutes = date.getMinutes().toString().padStart(2, '0');
-                   let seconds = date.getSeconds().toString().padStart(2, '0');
-                   let months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dec'];
-                   let month = months[date.getMonth();
-                   let year = date.getFullYear().toString();
-                   let day = date.getDate().toString().padStart(2, '0');
-                   return [day, month, year, [hours, minutes, seconds].join(':')].join(' ');
-               }
-               fromId.text(dater(fromTime));
-               toId.text(dater(toTime));
-           });
+           // $('[data-from-time][data-to-time]').each(function(){
+           //     let fromId = $(this).find('[data-from-id]');
+           //     let toId = $(this).find('[data-to-id]');
+           //     let fromTime = $(this).data('fromTime');
+           //     let toTime = $(this).data('toTime');
+           //     let dater = function(date){
+           //         date = new Date(date);
+           //         if(isNaN(date)){
+           //             return '-';
+           //         }
+           //         let timestamp = date.getTime();
+           //         timestamp -= date.getTimezoneOffset() * 60000;
+           //         date = new Date(timestamp);
+           //         let hours = date.getHours().toString().padStart(2, '0');
+           //         let minutes = date.getMinutes().toString().padStart(2, '0');
+           //         let seconds = date.getSeconds().toString().padStart(2, '0');
+           //         let months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dec'];
+           //         let month = months[date.getMonth()];
+           //         let year = date.getFullYear().toString();
+           //         let day = date.getDate().toString().padStart(2, '0');
+           //         return [day, month, year, [hours, minutes, seconds].join(':')].join(' ');
+           //     }
+           //     fromId.text(dater(fromTime));
+           //     toId.text(dater(toTime));
+           // });
         });
+
+        setInterval(()=>{
+            tables.each(function(i, item){
+               item.search();
+               item.draw();
+            });
+        }, 10000);
     </script>
     {{--    <script src="{{asset('js/pages/datatables.js?t=' . getLastJSTime())}}"></script>--}}
 @endpush

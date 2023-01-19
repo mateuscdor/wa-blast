@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Level;
 use App\Models\Number;
 use Illuminate\Http\Request;
 use App\Models\User;
@@ -28,7 +29,7 @@ class HomeController extends Controller
     public function store(Request $request){
         $limit_device = Auth::user()->limit_device;
         $deviceadded = $request->user()->numbers()->count();
-        if($limit_device <= $deviceadded){
+        if($limit_device <= $deviceadded && !in_array(Auth::user()->level_id, [Level::LEVEL_SUPER_ADMIN, Level::LEVEL_RESELLER])){
             return redirect()->back()->with('alert',['type' => 'danger','msg' => 'You have reached your limit of devices']);
         }
         $request->validate([

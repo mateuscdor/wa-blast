@@ -108,7 +108,7 @@
                                     <tr data-id="{{$autoreply->id}}">
 
 
-                                        <td>{{implode(', ', explode('[|]', $autoreply['keyword']))}} </td>
+                                        <td>{{implode(', ', explode('[|]', $autoreply['keyword'])) ?: '(No keywords)'}} </td>
                                         <td>Will respond if Keyword <span class="badge badge-success">{{$autoreply['type_keyword']}}</span> &  when the sender is <span class="badge badge-warning">{{$autoreply['reply_when']}}</span> </td>
                                         <td>{{$autoreply['type']}}</td>
                                         <td>
@@ -173,6 +173,19 @@
                         @endif
 
                         <div class="form-group">
+                            <label class="form-label">Only reply when sender is </label><br>
+                            <div class="form-check">
+                                <input type="radio" id="sender_type_group" class="form-check-input" value="Group" name="reply_when"><label for="sender_type_group" class="form-check-label">Group</label>
+                            </div>
+                            <div class="form-check">
+                                <input type="radio" id="sender_type_personal" class="form-check-input" value="Personal" name="reply_when"><label for="sender_type_personal" class="form-check-label">Personal</label>
+                            </div>
+                            <div class="form-check">
+                                <input type="radio" id="sender_type_all" class="form-check-input" value="All" checked name="reply_when"><label for="sender_type_all" class="form-check-label">All</label>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
                             <label class="form-label">Type Keyword</label><br>
                             <div class="form-check">
                                 <input type="radio" id="keyword_type_contain" class="form-check-input" value="Contain" checked name="type_keyword"><label for="keyword_type_contain" class="form-check-label">Contain</label>
@@ -180,21 +193,12 @@
                             <div class="form-check">
                                 <input type="radio" id="keyword_type_equal" class="form-check-input" value="Equal" name="type_keyword"><label for="keyword_type_equal" class="form-check-label">Equal</label>
                             </div>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Only reply when sender is </label><br>
                             <div class="form-check">
-                                <input type="radio" id="sender_type_group" class="form-check-input" value="Group" name="reply_when"><label for="sender_type_group" class="form-check-label">Group</label>
-                            </div>
-                            <div class="form-check">
-                            <input type="radio" id="sender_type_personal" class="form-check-input" value="Personal" name="reply_when"><label for="sender_type_personal" class="form-check-label">Personal</label>
-                            </div>
-                            <div class="form-check">
-                                <input type="radio" id="sender_type_all" class="form-check-input" value="All" checked name="reply_when"><label for="sender_type_all" class="form-check-label">All</label>
+                                <input type="radio" id="keyword_type_none" class="form-check-input" value="None" name="type_keyword"><label for="keyword_type_none" class="form-check-label">None</label>
                             </div>
                         </div>
 
-                        <div class="row mt-2">
+                        <div class="row mt-2" id="keyword__container">
                             <div class="col">
                                 <label for="keyword" class="form-label">Keywords</label>
                                 <input type="text" class="form-control" placeholder="Enter to add a keyword" name="keyword_input" id="keyword">
@@ -205,68 +209,78 @@
                         </div>
 
                         <div class="row mt-2">
-                            <div class="col-sm-6">
-                                <label for="start_time" class="form-label">Active Start Time</label>
-                                <input type="time" name="start_time" class="form-control" id="start_time" required>
-                            </div>
-                            <div class="col-sm-6">
-                                <label for="end_time" class="form-label">Active End Time</label>
-                                <input type="time" name="end_time" class="form-control" id="end_time" required>
+                            <div class="col">
+                                <div class="form-switch">
+                                    <input class="form-check-input" type="checkbox" id="switch_time">
+                                    <label class="form-check-label" for="switch_time">Time Management</label>
+                                </div>
                             </div>
                         </div>
 
-                        <div class="row mt-2">
-                            <div class="col-sm-6">
-                                <label for="active_days" class="form-label">Active Days</label>
-                                <div class="dropdown" id="dd_days">
-                                    <a class="btn btn-outline-success btn-sm dropdown-toggle w-100" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                        Select days
-                                    </a>
+                        <div id="time_management">
+                            <div class="row mt-2">
+                                <div class="col-sm-6">
+                                    <label for="start_time" class="form-label">Active Start Time</label>
+                                    <input type="time" name="start_time" class="form-control" value="00:00" id="start_time">
+                                </div>
+                                <div class="col-sm-6">
+                                    <label for="end_time" class="form-label">Active End Time</label>
+                                    <input type="time" name="end_time" class="form-control" value="23:59" id="end_time">
+                                </div>
+                            </div>
+                            <div class="row mt-2">
+                                <div class="col-sm-6">
+                                    <label for="active_days" class="form-label">Active Days</label>
+                                    <div class="dropdown" id="dd_days">
+                                        <a class="btn btn-outline-success btn-sm dropdown-toggle w-100" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                            Select days
+                                        </a>
 
-                                    <ul class="dropdown-menu">
-                                        <li>
-                                            <label for="active_day_1" data-stop-propagation class="form-check flex dropdown-item">
-                                                <input class="form-check-input" type="checkbox" data-value="sat" id="active_day_1" name="active_days[0]">
-                                                <span class="form-check-label flex-grow-1 d-block">Sabtu</span>
-                                            </label>
-                                        </li>
-                                        <li>
-                                            <label for="active_day_2" data-stop-propagation class="form-check flex dropdown-item">
-                                                <input class="form-check-input" type="checkbox" data-value="sun" id="active_day_2" name="active_days[1]">
-                                                <span class="form-check-label flex-grow-1 d-block">Minggu</span>
-                                            </label>
-                                        </li>
-                                        <li>
-                                            <label for="active_day_3" data-stop-propagation class="form-check flex dropdown-item">
-                                                <input class="form-check-input" type="checkbox" data-value="mon" id="active_day_3" name="active_days[2]">
-                                                <span class="form-check-label flex-grow-1 d-block">Senin</span>
-                                            </label>
-                                        </li>
-                                        <li>
-                                            <label for="active_day_4" data-stop-propagation class="form-check flex dropdown-item">
-                                                <input class="form-check-input" type="checkbox" data-value="tue" id="active_day_4" name="active_days[3]">
-                                                <span class="form-check-label flex-grow-1 d-block">Selasa</span>
-                                            </label>
-                                        </li>
-                                        <li>
-                                            <label for="active_day_5" data-stop-propagation class="form-check flex dropdown-item">
-                                                <input class="form-check-input" type="checkbox" data-value="wed" id="active_day_5" name="active_days[4]">
-                                                <span class="form-check-label flex-grow-1 d-block">Rabu</span>
-                                            </label>
-                                        </li>
-                                        <li>
-                                            <label for="active_day_6" data-stop-propagation class="form-check flex dropdown-item">
-                                                <input class="form-check-input" type="checkbox" data-value="thu" id="active_day_6" name="active_days[5]">
-                                                <span class="form-check-label flex-grow-1 d-block">Kamis</span>
-                                            </label>
-                                        </li>
-                                        <li>
-                                            <label for="active_day_7" data-stop-propagation class="form-check flex dropdown-item">
-                                                <input class="form-check-input" type="checkbox" data-value="fri" id="active_day_7" name="active_days[6]">
-                                                <span class="form-check-label flex-grow-1 d-block">Jumat</span>
-                                            </label>
-                                        </li>
-                                    </ul>
+                                        <ul class="dropdown-menu">
+                                            <li>
+                                                <label for="active_day_1" data-stop-propagation class="form-check flex dropdown-item">
+                                                    <input class="form-check-input" type="checkbox" data-value="sat" id="active_day_1" name="active_days[0]">
+                                                    <span class="form-check-label flex-grow-1 d-block">Sabtu</span>
+                                                </label>
+                                            </li>
+                                            <li>
+                                                <label for="active_day_2" data-stop-propagation class="form-check flex dropdown-item">
+                                                    <input class="form-check-input" type="checkbox" data-value="sun" id="active_day_2" name="active_days[1]">
+                                                    <span class="form-check-label flex-grow-1 d-block">Minggu</span>
+                                                </label>
+                                            </li>
+                                            <li>
+                                                <label for="active_day_3" data-stop-propagation class="form-check flex dropdown-item">
+                                                    <input class="form-check-input" type="checkbox" data-value="mon" id="active_day_3" name="active_days[2]">
+                                                    <span class="form-check-label flex-grow-1 d-block">Senin</span>
+                                                </label>
+                                            </li>
+                                            <li>
+                                                <label for="active_day_4" data-stop-propagation class="form-check flex dropdown-item">
+                                                    <input class="form-check-input" type="checkbox" data-value="tue" id="active_day_4" name="active_days[3]">
+                                                    <span class="form-check-label flex-grow-1 d-block">Selasa</span>
+                                                </label>
+                                            </li>
+                                            <li>
+                                                <label for="active_day_5" data-stop-propagation class="form-check flex dropdown-item">
+                                                    <input class="form-check-input" type="checkbox" data-value="wed" id="active_day_5" name="active_days[4]">
+                                                    <span class="form-check-label flex-grow-1 d-block">Rabu</span>
+                                                </label>
+                                            </li>
+                                            <li>
+                                                <label for="active_day_6" data-stop-propagation class="form-check flex dropdown-item">
+                                                    <input class="form-check-input" type="checkbox" data-value="thu" id="active_day_6" name="active_days[5]">
+                                                    <span class="form-check-label flex-grow-1 d-block">Kamis</span>
+                                                </label>
+                                            </li>
+                                            <li>
+                                                <label for="active_day_7" data-stop-propagation class="form-check flex dropdown-item">
+                                                    <input class="form-check-input" type="checkbox" data-value="fri" id="active_day_7" name="active_days[6]">
+                                                    <span class="form-check-label flex-grow-1 d-block">Jumat</span>
+                                                </label>
+                                            </li>
+                                        </ul>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -279,7 +293,9 @@
                                 </div>
                             </div>
                         </div>
+
                         <div class="divider mt-2 mb-2"></div>
+
 
                         <div id="reply_creator" class="row">
                             @isset($template)
@@ -390,8 +406,15 @@
 
             let keywords = autoreply.keyword.split('[|]');
 
-            $('[name="keyword"]').val('');
+            $('#keyword').val('');
             multiSelector.fill(keywords);
+            if(autoreply.settings?.startTime === '00:00' && autoreply.settings?.endTime === '23:59' && autoreply.settings?.activeDays?.length === 7){
+                $('#time_management').hide();
+                $('#switch_time').prop('checked', false);
+            } else {
+                $('#time_management').show();
+                $('#switch_time').prop('checked', true);
+            }
 
             $('[name="start_time"]').val(autoreply.settings?.startTime);
             $('[name="end_time"]').val(autoreply.settings?.endTime);
@@ -414,14 +437,27 @@
             $('#autoreply-modal-title').text('Edit Auto Reply');
             $('#message_type').val(autoreply.type)
             $('#message_type').trigger('change')
-            let buttons = currentData.buttons ?? [];
+            let buttons = currentData.buttons || currentData.templateButtons || [];
             let list = currentData.list ?? {};
             let footer = currentData.footer ?? "";
             let body = currentData.text ?? currentData.caption ?? currentData.message ?? '';
             let image = currentData.image?.url ?? "";
-            buttonCreator.fill(buttons);
-            listCreator.fill(list);
-            footerCreator.fill(footer);
+
+            buttonCreator.fill(buttons?.map(b => {
+                let id = b.index;
+                let type = 'callButton' in b? 'phone': 'quickReplyButton' in b? 'text': 'url';
+                let currentType = 'callButton' in b? 'callButton': 'quickReplyButton' in b? 'quickReplyButton': 'urlButton';
+                let label = (b[currentType])?.displayText ?? '';
+                let text = b[currentType].url ?? b[currentType].phoneNumber ?? '';
+                return {
+                    id,
+                    type,
+                    label,
+                    text
+                }
+            }));
+            listCreator.fill(currentData);
+            footerCreator.fill(footer);[{"index": 0, "callButton": {"displayText": "Button 1", "phoneNumber": "6285157830644"}}]
             bodyCreator.fill(body);
             mediaCreator.fill(image);
         });
@@ -459,6 +495,21 @@
             }
             $('#selection_count').text(selected[selectedGroup].length);
         });
+        $('[name="type_keyword"]').change(function(e){
+            if($('[name="type_keyword"]:checked').val() === 'None'){
+                $('#keyword__container').hide();
+            } else {
+                $('#keyword__container').show();
+            }
+        });
+        $('#switch_time').change(function(e){
+           let checked = $(this).prop('checked');
+           if(checked){
+               $('#time_management').show();
+           } else {
+               $('#time_management').hide();
+           }
+        });
 
         $('#form').on('submit', function(e){
             e.preventDefault();
@@ -478,19 +529,33 @@
             }
 
             data.label = $('#template_name').val();
-            data.keyword = $('[name="keyword"]').val();
-            data.keywords = $('[name="keywords"]').val();
-            data.start_time = $('[name="start_time"]').val();
-            data.end_time = $('[name="end_time"]').val();
             data.type_keyword = $('[name="type_keyword"]:checked').val();
+
+            data.keyword = $('#keyword').val();
+
+            if(data.type_keyword !== 'None'){
+                data.keyword = $('#keyword').val();
+                data.keywords = $('#keywords').val();
+            } else {
+                data.keyword = '';
+            }
+
+            if($('#switch_time').prop('checked')){
+                data.active_days = Array.from($('[id^=active_day_]:checked').map(function(){
+                    let el = $(this);
+                    return el.data('value');
+                }));
+                data.start_time = $('[name="start_time"]').val();
+                data.end_time = $('[name="end_time"]').val();
+                data.active_days = JSON.stringify(data.active_days);
+            } else {
+                data.start_time = '00:00';
+                data.end_time = '23:59';
+                data.active_days = ['sat', 'sun', 'mon', 'tue', 'wed', 'thu', 'fri'];
+            }
+
             data.device = $('[name="device"]').val();
             data.reply_when = $('[name="reply_when"]:checked').val();
-            data.active_days = Array.from($('[id^=active_day_]:checked').map(function(){
-                let el = $(this);
-                return el.data('value');
-            }));
-            
-            data.active_days = JSON.stringify(data.active_days);
 
             $.ajax({
                 method : 'POST',
@@ -521,16 +586,19 @@
             isUpdating = false;
             $('#form').trigger('reset');
 
-            $('[name="keyword"]').val('');
+            $('#keyword').val('');
             multiSelector.fill([]);
 
             $('[name="start_time"]').val('');
             $('[name="end_time"]').val('');
-            $('[name="type_keyword"]:checked').val('');
-            $('[name="reply_when"]:checked').val('');
+            $('[name="reply_when"][value="All"]').prop('checked', true);
+            $('[name="type_keyword"][value="Contain"]').prop('checked', true);
+            $('[name="type_keyword"]').trigger('change');
             $('[id^=active_day_]').each(function(){
                 $(this).prop('checked', false);
             });
+            $('#switch_time').prop('checked', false);
+            $('#switch_time').trigger('change');
 
             $('#autoreply-modal-title').text('Add Auto Reply');
             $('#message_type').val('')
@@ -546,5 +614,8 @@
             bodyCreator.fill(body);
             mediaCreator.fill(image);
         });
+
+        $('#time_management').hide();
+
     </script>
 @endpush

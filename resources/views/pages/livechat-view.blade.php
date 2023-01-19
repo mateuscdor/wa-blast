@@ -4,6 +4,7 @@
 
 @push('head')
     <link href="{{asset('plugins/datatables/datatables.min.css')}}" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/material-design-iconic-font/2.2.0/css/material-design-iconic-font.min.css" integrity="sha512-rRQtF4V2wtAvXsou4iUAs2kXHi3Lj9NE7xJR77DE7GHsxgY9RTWy93dzMXgDIG8ToiRTD45VsDNdTiUagOFeZA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <style>
         .chat_item {
             margin-top: 0.25rem;
@@ -50,6 +51,31 @@
         .chat_disabled {
             background-color: #eeeeee !important;
             margin-right: 0.5rem !important;
+        }
+        .emoji {
+            padding: 4px 4px;
+            border: 1px solid rgba(0, 0, 0, 0.3);
+            border-radius: 20px;
+        }
+        .dropup .dropdown-toggle::after {
+            display: none;
+        }
+        .dropup li::-webkit-scrollbar {
+            width: 6px;
+        }
+        .dropdown-menu {
+            display: none;
+        }
+        .dropdown-menu.show {
+            display: block;
+        }
+        [data-emoji] {
+            cursor: pointer;
+            line-height: 32px;
+            border-radius: 4px;
+        }
+        [data-emoji]:hover {
+            background: #e9eae5;
         }
     </style>
 @endpush
@@ -101,7 +127,25 @@
                             <input value="Please connect your device" disabled="disabled" class="form-control chat_disabled">
                         @elseif($conversation->can_send_message)
                             <form method="POST" action="" id="message_form" class="d-flex align-items-center pr-2">
-                                <input autocomplete="off" placeholder="Type a message" autofocus="autofocus" name="chat_message" id="chat_input" class="flex-grow-1 form-control">
+                                <div class="dropup" id="">
+                                    <a class="dropdown-toggle" href="#" role="button" id="dropdownMenuLink" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <div class="emoji">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" id="smiley" x="3147" y="3209"><path fill-rule="evenodd" clip-rule="evenodd" d="M9.153 11.603c.795 0 1.44-.88 1.44-1.962s-.645-1.96-1.44-1.96c-.795 0-1.44.88-1.44 1.96s.645 1.965 1.44 1.965zM5.95 12.965c-.027-.307-.132 5.218 6.062 5.55 6.066-.25 6.066-5.55 6.066-5.55-6.078 1.416-12.13 0-12.13 0zm11.362 1.108s-.67 1.96-5.05 1.96c-3.506 0-5.39-1.165-5.608-1.96 0 0 5.912 1.055 10.658 0zM11.804 1.01C5.61 1.01.978 6.034.978 12.23s4.826 10.76 11.02 10.76S23.02 18.424 23.02 12.23c0-6.197-5.02-11.22-11.216-11.22zM12 21.355c-5.273 0-9.38-3.886-9.38-9.16 0-5.272 3.94-9.547 9.214-9.547a9.548 9.548 0 0 1 9.548 9.548c0 5.272-4.11 9.16-9.382 9.16zm3.108-9.75c.795 0 1.44-.88 1.44-1.963s-.645-1.96-1.44-1.96c-.795 0-1.44.878-1.44 1.96s.645 1.963 1.44 1.963z" fill="#7d8489"/></svg>
+                                        </div>
+                                    </a>
+
+                                    <ul class="dropdown-menu" aria-labelledby="dropdownMenuLink">
+                                        <li class="row" style="max-height: 200px; overflow: auto; padding-left: 4px;">
+                                            @php
+                                                $i = 128511;
+                                            @endphp
+                                            @while($i++ < 129000)
+                                                <div data-emoji class="col-2 p-0 cursor-pointer text-lg text-center text-decoration-none">&#{{$i}};</div>
+                                            @endwhile
+                                        </li>
+                                    </ul>
+                                </div>
+                                <input autocomplete="off" placeholder="Type a message" autofocus="on" name="chat_message" id="chat_input" class="flex-grow-1 form-control-sm form-control">
                                 <button class="btn btn-success">
                                     Send
                                 </button>
@@ -252,6 +296,10 @@
             updateTime();
             document.getElementById('chats').scrollTo({
                 top: document.getElementById('chats').scrollHeight,
+            });
+            $('[data-emoji]').click(function(){
+                $('#chat_input').val($('#chat_input').val() + $(this).text());
+                $('#chat_input').focus();
             });
         });
     </script>

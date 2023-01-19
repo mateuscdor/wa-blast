@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Autoreply;
 use App\Models\Number;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class AutoreplyController extends Controller
@@ -27,6 +28,11 @@ class AutoreplyController extends Controller
 
 
     public function store(Request $request){
+
+        $request->validate([
+            'active_days' => 'array',
+            'active_days.*' => 'in:sat,sun,mon,tue,wed,thu,fri'
+        ]);
 
         $isUpdating = $request->id;
         $autoreply = null;
@@ -50,20 +56,15 @@ class AutoreplyController extends Controller
 //
 //            return response()->json('error', 400);
 //        }
-        $keyword = $request->keyword_input;
-        if($request->keyword){
+        $keyword = $request->keywords;
+        if($request->keyword || $request->keywords){
             $keywords = explode('[|]', $request->keyword);
             if($keyword){
                 $keywords[] = $keyword;
             }
-            $keyword = implode('[|]', $keywords);
-        } else if(!$keyword) {
-            session()->flash('alert', [
-                'type' => 'danger',
-                'msg' => 'Keyword must be defined'
-            ]);
-
-            return response()->json('error', 400);
+            $keyword = collect($keywords)->filter(function($item){return !!$item;})->join('[|]');
+        } else {
+            $keyword = '';
         }
 
         $messageType = $request->message_type;
@@ -89,6 +90,11 @@ class AutoreplyController extends Controller
         $message = UserTemplate::generateFromMessage(json_decode(json_encode($msg)));
 
 
+        if($message === false){
+            return false;
+        }
+
+
         $jsonReply = json_encode($message);
         $attributes = [
             'user_id' => Auth::id(),
@@ -101,7 +107,7 @@ class AutoreplyController extends Controller
             'settings' => [
                 'startTime' => $request->start_time,
                 'endTime' => $request->end_time,
-                'activeDays' => json_decode($request->active_days ?? '[]') ?: ($request->active_days ?? [])
+                'activeDays' => $request->active_days,
             ]
         ];
         if($autoreply){
@@ -123,11 +129,12 @@ class AutoreplyController extends Controller
 
         $history = $request->get('historyId');
         if($history){
-            $history = AutoreplyMessages::find($history);
+            $history = AutoreplyMessages::with('repliedMessage')->find($history);
         }
 
         if($request->ajax()){
             $dataAutoReply = Autoreply::find($id);
+
             if($history && isset($history->prepared_message) && $history->prepared_message){
                 $reply = $history->prepared_message;
                 $keyword = $history->repliedMessage->message['text'] ?? $history->repliedMessage->message['caption'];
@@ -140,24 +147,24 @@ class AutoreplyController extends Controller
                 case 'list':
                     return view('ajax.autoreply.listshow', [
                         'keyword'=>$keyword,
-                        'message'=> json_decode($reply)->text,
-                        'title'=> json_decode($reply)->title,
-                        'footer'=> json_decode($reply)->footer,
-                        'buttonText' => json_decode($reply)->buttonText,
-                        'sections' => json_decode($reply)->sections,
+                        'message'=> json_decode($reply)->text ?? '',
+                        'title'=> json_decode($reply)->title ?? '',
+                        'footer'=> json_decode($reply)->footer ?? '',
+                        'buttonText' => json_decode($reply)->buttonText ?? '',
+                        'sections' => json_decode($reply)->sections ?? [],
                     ]);
                 case 'text':
                     return view('ajax.autoreply.textshow',[
                         'keyword'=>$keyword,
-                        'text'=> json_decode($reply)->text
+                        'text'=> json_decode($reply)->text ?? ''
                     ])->render();
                     break;
                 case 'image':
                     return  view('ajax.autoreply.imageshow',[
                         'keyword'=>$keyword,
-                        'caption'=> json_decode($reply)->caption,
-                        'image'=> json_decode($reply)->image->url,
-                        'buttons'=> json_decode($reply)->buttons,
+                        'caption'=> json_decode($reply)->caption ?? '',
+                        'image'=> json_decode($reply)->image->url ?? null,
+                        'templates' => json_decode($reply)->templateButtons ?? [],
                     ])->render();
                     break;
                 case 'button':
@@ -165,8 +172,8 @@ class AutoreplyController extends Controller
                     return  view('ajax.autoreply.buttonshow',[
                         'keyword'=>$keyword,
                         'message'=> json_decode($reply)->text ?? json_decode($reply)->caption,
-                        'footer' => json_decode($reply)->footer,
-                        'buttons'=> json_decode($reply)->buttons,
+                        'footer' => json_decode($reply)->footer ?? '',
+                        'templates' => json_decode($reply)->templateButtons ?? [],
                         'image'=> json_decode($reply)->image->url ?? null,
                     ])->render();
                     break;
@@ -178,8 +185,8 @@ class AutoreplyController extends Controller
                     return  view('ajax.autoreply.templateshow',[
                         'keyword'=>$keyword,
                         'message'=> json_decode($reply)->text ?? json_decode($reply)->caption,
-                        'footer' => json_decode($reply)->footer,
-                        'templates' => json_decode($reply)->templateButtons,
+                        'footer' => json_decode($reply)->footer ?? '',
+                        'templates' => json_decode($reply)->templateButtons ?? [],
                         'image' => json_decode($reply)->image->url ?? null,
                     ])->render();
                     break;

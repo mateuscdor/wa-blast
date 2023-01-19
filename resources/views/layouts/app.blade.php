@@ -104,6 +104,49 @@ Dilarang share atau menjual belikan source code ini tanpa izin ya bos! biar berk
     $('[data-stop-propagation]').click(function(e){
        e.stopPropagation();
     });
+    $(document).ready(function(){
+        const audio = new Audio("{{url('/assets/sounds/mixkit-long-pop-2358.wav')}}");
+        let soundNotification = function(){
+
+        }
+        audio.addEventListener('canplay', function(){
+            soundNotification = function(){
+                audio.play();
+            }
+        });
+        function debounce(func, timeout = 300){
+            let timer;
+            return (...args) => {
+                clearTimeout(timer);
+                timer = setTimeout(() => { func.apply(this, args); }, timeout);
+            };
+        }
+        const livechatNotify = debounce(function(unreads){
+            let title = document.title;
+            document.title = `(${unreads}) Live Chat Notifications`;
+            setTimeout(()=>{
+                document.title = title;
+            }, 1000);
+        }, 2000);
+
+        setInterval(()=>{
+            $.ajax({
+               url: '{{route('livechat.notifications')}}',
+               method: 'GET',
+                dataType: 'json',
+                success: function(r){
+                   if(r.popups){
+                       livechatNotify(r.unreads);
+                   }
+                   if(r.needsSound){
+                       soundNotification();
+                   }
+                }
+            });
+        }, 2000);
+    });
+
+
 </script>
 @stack('scripts')
 </body>

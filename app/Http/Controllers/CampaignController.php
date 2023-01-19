@@ -37,32 +37,35 @@ class CampaignController extends Controller
     public function show (Request $request, $id)
     {
         $campaign = $request->user()->campaigns()->find($id);
+
         if ($request->ajax()) {
 
+            $msg = json_decode($campaign->message);
 
             switch ($campaign->type) {
                 case 'text':
                     return view('ajax.autoreply.textshow', [
                         'keyword' => 'PREVIEW MESSAGE',
-                        'text' => json_decode($campaign->message)->text
+                        'text' => $msg->text
                     ])->render();
                     break;
                 case 'image':
                     return  view('ajax.autoreply.imageshow', [
                         'keyword' => 'PREVIEW MESSAGE',
-                        'caption' => json_decode($campaign->message)->caption,
-                        'image' => json_decode($campaign->message)->image->url,
+                        'caption' => $msg->text ?? $msg->caption ?? $msg->message ?? null,
+                        'footer' => $msg->footer ?? '',
+                        'templates' => $msg->templateButtons ?? [],
+                        'image' => $msg->image->url ?? null,
                     ])->render();
                     break;
                 case 'button':
                     // if exists property image in $campaign->message
-
                     return  view('ajax.autoreply.buttonshow', [
                         'keyword' => 'PREVIEW MESSAGE',
-                        'message' => json_decode($campaign->message)->text ?? json_decode($campaign->message)->caption,
-                        'footer' => json_decode($campaign->message)->footer,
-                        'buttons' => json_decode($campaign->message)->buttons,
-                        'image' => json_decode($campaign->message)->image->url ?? null,
+                        'message' => $msg->text ?? $msg->caption,
+                        'footer' => $msg->footer ?? '',
+                        'templates' => $msg->templateButtons ?? [],
+                        'image' => $msg->image->url ?? null,
                     ])->render();
                     break;
                 case 'template':
@@ -72,10 +75,24 @@ class CampaignController extends Controller
 
                     return  view('ajax.autoreply.templateshow', [
                         'keyword' => 'PREVIEW MESSAGE',
-                        'message' => json_decode($campaign->message)->text ?? json_decode($campaign->message)->caption,
-                        'footer' => json_decode($campaign->message)->footer,
-                        'templates' => json_decode($campaign->message)->templateButtons,
-                        'image' => json_decode($campaign->message)->image->url ?? null,
+                        'message' => $msg->text ?? $msg->caption,
+                        'footer' => $msg->footer,
+                        'templates' => $msg->templateButtons ?? [],
+                        'image' => $msg->image->url ?? null,
+                    ])->render();
+                    break;
+                case 'list':
+
+                    $templates = [];
+                    // if exists template 1
+
+                    return  view('ajax.autoreply.listshow', [
+                        'keyword' => 'PREVIEW MESSAGE',
+                        'message' => $msg->text ?? $msg->caption,
+                        'footer' => $msg->footer,
+                        'buttonText' => $msg->buttonText ?? '',
+                        'templates' => $msg->templateButtons ?? $msg->sections ?? [],
+                        'image' => $msg->image->url ?? null,
                     ])->render();
                     break;
                 default:
